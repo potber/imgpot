@@ -76,6 +76,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!file.name || file.name.trim().length === 0) error(400, 'File must have a name');
 	if (file.name.length > 255) error(400, 'Filename too long (max 255 chars)');
 
+	// Strip path separators and control characters from filename
+	const sanitizedFilename = file.name.replace(/[/\\]/g, '_').replace(/[\x00-\x1f]/g, '');
+
 	// Validate folder belongs to user
 	let folderId: number | null = null;
 	if (folderIdStr) {
@@ -158,7 +161,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			.values({
 				userId: locals.user.id,
 				folderId,
-				originalFilename: file.name,
+				originalFilename: sanitizedFilename,
 				mimeType: `image/${metadata.format}`,
 				originalWidth: metadata.width,
 				originalHeight: metadata.height,
