@@ -26,7 +26,7 @@ export async function uploadFile(path: string, buffer: Buffer): Promise<void> {
 	});
 
 	if (!response.ok) {
-		throw new Error(`Bunny upload failed: ${response.status} ${await response.text()}`);
+		throw new Error('File upload to CDN failed');
 	}
 }
 
@@ -41,7 +41,7 @@ export async function deleteFile(path: string): Promise<void> {
 	});
 
 	if (!response.ok) {
-		throw new Error(`Bunny delete failed: ${response.status}`);
+		throw new Error('File delete from CDN failed');
 	}
 }
 
@@ -59,6 +59,6 @@ export async function deleteDirectory(path: string): Promise<void> {
 	});
 
 	if (!response.ok) {
-		throw new Error(`Bunny directory delete failed: ${response.status}`);
+		throw new Error('Directory delete from CDN failed');
 	}
 }

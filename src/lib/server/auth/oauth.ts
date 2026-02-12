@@ -29,7 +29,7 @@ export async function validateToken(accessToken: string): Promise<PotberSession>
 	});
 
 	if (!response.ok) {
-		throw new Error(`Token validation failed: ${response.status}`);
+		throw new Error('Token validation failed');
 	}
 
 	const data: PotberSession = await response.json();

@@ -38,8 +38,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		});
 
 		return json({ user: { id: user.id, username: user.username } });
-	} catch (e) {
-		console.error('Token validation error:', e);
+	} catch {
 		error(401, { message: 'Invalid access token' });
 	}
 };
