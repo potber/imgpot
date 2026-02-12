@@ -2,9 +2,9 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { images, imageVariations, folders } from '$lib/server/db/schema';
-import { eq, desc, and, count } from 'drizzle-orm';
+import { eq, desc, and, count, isNull, inArray } from 'drizzle-orm';
 import { processImageVariations, getImageMetadata } from '$lib/server/images/process';
-import { uploadFile } from '$lib/server/bunny/storage';
+import { uploadFile, deleteFile } from '$lib/server/bunny/storage';
 import { buildCdnUrl, generateStorageToken } from '$lib/server/bunny/cdn';
 import { VARIATION_SUFFIXES } from '$lib/server/images/variations';
 
@@ -21,49 +21,26 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const conditions = [eq(images.userId, locals.user.id)];
 	if (folderId === 'unsorted') {
-		// This requires IS NULL check - handled below
+		conditions.push(isNull(images.folderId));
 	} else if (folderId) {
-		conditions.push(eq(images.folderId, parseInt(folderId)));
+		const parsed = parseInt(folderId);
+		if (!isNaN(parsed)) conditions.push(eq(images.folderId, parsed));
 	}
 
-	let query = db
+	const where = and(...conditions);
+
+	const imageList = await db
 		.select()
 		.from(images)
-		.where(
-			folderId === 'unsorted'
-				? and(eq(images.userId, locals.user.id), eq(images.folderId, 0)) // placeholder
-				: and(...conditions)
-		)
+		.where(where)
 		.orderBy(desc(images.createdAt))
 		.limit(limit)
 		.offset(offset);
-
-	// For unsorted, we need IS NULL which requires raw SQL approach
-	let imageList;
-	if (folderId === 'unsorted') {
-		const { isNull } = await import('drizzle-orm');
-		imageList = await db
-			.select()
-			.from(images)
-			.where(and(eq(images.userId, locals.user.id), isNull(images.folderId)))
-			.orderBy(desc(images.createdAt))
-			.limit(limit)
-			.offset(offset);
-	} else {
-		imageList = await db
-			.select()
-			.from(images)
-			.where(and(...conditions))
-			.orderBy(desc(images.createdAt))
-			.limit(limit)
-			.offset(offset);
-	}
 
 	// Get variations for each image
 	const imageIds = imageList.map((img) => img.id);
 	let variations: (typeof imageVariations.$inferSelect)[] = [];
 	if (imageIds.length > 0) {
-		const { inArray } = await import('drizzle-orm');
 		variations = await db
 			.select()
 			.from(imageVariations)
@@ -71,19 +48,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	// Get total count
-	let totalResult;
-	if (folderId === 'unsorted') {
-		const { isNull } = await import('drizzle-orm');
-		totalResult = await db
-			.select({ count: count() })
-			.from(images)
-			.where(and(eq(images.userId, locals.user.id), isNull(images.folderId)));
-	} else {
-		totalResult = await db
-			.select({ count: count() })
-			.from(images)
-			.where(and(...conditions));
-	}
+	const totalResult = await db
+		.select({ count: count() })
+		.from(images)
+		.where(where);
 	const total = totalResult[0].count;
 
 	const result = imageList.map((img) => ({
@@ -167,7 +135,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// Clean up any files already uploaded
 		for (const f of uploadedFiles) {
 			try {
-				const { deleteFile } = await import('$lib/server/bunny/storage');
 				await deleteFile(f);
 			} catch {
 				// Best-effort cleanup
