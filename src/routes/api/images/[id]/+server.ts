@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { images, imageVariations, folders } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { deleteFile } from '$lib/server/bunny/storage';
+import { audit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -58,6 +59,8 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 	// Delete from database (cascade deletes variations)
 	await db.delete(images).where(eq(images.id, imageId));
+
+	audit(locals.user.id, 'image.delete', { imageId });
 
 	return json({ success: true });
 };

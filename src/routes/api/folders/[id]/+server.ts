@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { folders, images } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { slugify } from '$lib/utils/slugify';
+import { audit } from '$lib/server/audit';
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -71,6 +72,8 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		.where(eq(images.folderId, folderId));
 
 	await db.delete(folders).where(eq(folders.id, folderId));
+
+	audit(locals.user.id, 'folder.delete', { folderId, folderName: folder.name });
 
 	return json({ success: true });
 };

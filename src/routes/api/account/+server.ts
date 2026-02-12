@@ -5,6 +5,7 @@ import { users, images, imageVariations, folders } from '$lib/server/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { deleteFile } from '$lib/server/bunny/storage';
 import { destroySession } from '$lib/server/auth/session';
+import { audit } from '$lib/server/audit';
 
 export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -46,6 +47,8 @@ export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 	}
 
 	destroySession(cookies);
+
+	audit(userId, 'account.delete', { imageCount: userImages.length, cdnFiles: cdnFilenames.length });
 
 	return json({ success: true });
 };
