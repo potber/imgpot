@@ -65,23 +65,25 @@ describe('processImageVariations', () => {
 		expect(small.height).toBe(240);
 	});
 
-	it('skips variations larger than the original', async () => {
+	it('keeps original as large and downscales where possible', async () => {
 		const buffer = await createTestImage(600, 450);
 		const variations = await processImageVariations(buffer);
 
-		// 600px is smaller than large (1600) and medium (800), only small (320) fits
-		expect(variations).toHaveLength(1);
-		expect(variations[0].type).toBe('small');
-		expect(variations[0].width).toBe(320);
+		// 600px fits within large (1600), so original is kept as "large"
+		// 600px > small (320), so a downscaled "small" is also produced
+		expect(variations).toHaveLength(2);
+		expect(variations.map((v) => v.type)).toEqual(['large', 'small']);
+		expect(variations[0].width).toBe(600);
+		expect(variations[1].width).toBe(320);
 	});
 
-	it('produces at least one variation for tiny images', async () => {
+	it('keeps original as large for tiny images', async () => {
 		const buffer = await createTestImage(200, 150);
 		const variations = await processImageVariations(buffer);
 
-		// Image is smaller than all thresholds, still get one "small" at original size
+		// Image is smaller than all thresholds, kept as "large" at original size
 		expect(variations).toHaveLength(1);
-		expect(variations[0].type).toBe('small');
+		expect(variations[0].type).toBe('large');
 		expect(variations[0].width).toBe(200);
 		expect(variations[0].height).toBe(150);
 	});

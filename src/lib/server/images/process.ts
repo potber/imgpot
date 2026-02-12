@@ -47,9 +47,27 @@ export async function processImageVariations(
 	const isAnimated = metadata.format === 'gif' || (metadata.pages ?? 0) > 1;
 
 	const results: ProcessedVariation[] = [];
+	const largeConfig = VARIATION_CONFIGS[0];
+
+	// If original fits within the large threshold, keep it as the "large" variation
+	if (originalWidth <= largeConfig.maxWidth) {
+		const outputBuffer = await sharpInput(inputBuffer, isAnimated)
+			.webp({ quality: largeConfig.quality })
+			.toBuffer();
+		const outputMeta = await sharp(outputBuffer).metadata();
+
+		results.push({
+			type: 'large',
+			buffer: outputBuffer,
+			width: outputMeta.width!,
+			height: outputMeta.height!,
+			sizeBytes: outputBuffer.length,
+			format: 'webp'
+		});
+	}
 
 	for (const config of VARIATION_CONFIGS) {
-		// Skip variations that would require upscaling
+		// Skip if original is too small to downscale to this tier
 		if (originalWidth <= config.maxWidth) continue;
 
 		const outputBuffer = await sharpInput(inputBuffer, isAnimated)
@@ -60,23 +78,6 @@ export async function processImageVariations(
 
 		results.push({
 			type: config.type,
-			buffer: outputBuffer,
-			width: outputMeta.width!,
-			height: outputMeta.height!,
-			sizeBytes: outputBuffer.length,
-			format: 'webp'
-		});
-	}
-
-	// Always produce at least one variation (the smallest that fits)
-	if (results.length === 0) {
-		const outputBuffer = await sharpInput(inputBuffer, isAnimated)
-			.webp({ quality: VARIATION_CONFIGS[VARIATION_CONFIGS.length - 1].quality })
-			.toBuffer();
-		const outputMeta = await sharp(outputBuffer).metadata();
-
-		results.push({
-			type: 'small',
 			buffer: outputBuffer,
 			width: outputMeta.width!,
 			height: outputMeta.height!,
