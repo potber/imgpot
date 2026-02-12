@@ -1,0 +1,183 @@
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { db } from '$lib/server/db';
+import { images, imageVariations, folders } from '$lib/server/db/schema';
+import { eq, desc, and, count } from 'drizzle-orm';
+import { processImageVariations, getImageMetadata } from '$lib/server/images/process';
+import { uploadFile } from '$lib/server/bunny/storage';
+import { buildCdnUrl, buildStoragePath } from '$lib/server/bunny/cdn';
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+export const GET: RequestHandler = async ({ locals, url }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const page = parseInt(url.searchParams.get('page') || '1');
+	const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+	const folderId = url.searchParams.get('folder_id');
+	const offset = (page - 1) * limit;
+
+	const conditions = [eq(images.userId, locals.user.id)];
+	if (folderId === 'unsorted') {
+		// This requires IS NULL check - handled below
+	} else if (folderId) {
+		conditions.push(eq(images.folderId, parseInt(folderId)));
+	}
+
+	let query = db
+		.select()
+		.from(images)
+		.where(
+			folderId === 'unsorted'
+				? and(eq(images.userId, locals.user.id), eq(images.folderId, 0)) // placeholder
+				: and(...conditions)
+		)
+		.orderBy(desc(images.createdAt))
+		.limit(limit)
+		.offset(offset);
+
+	// For unsorted, we need IS NULL which requires raw SQL approach
+	let imageList;
+	if (folderId === 'unsorted') {
+		const { isNull } = await import('drizzle-orm');
+		imageList = await db
+			.select()
+			.from(images)
+			.where(and(eq(images.userId, locals.user.id), isNull(images.folderId)))
+			.orderBy(desc(images.createdAt))
+			.limit(limit)
+			.offset(offset);
+	} else {
+		imageList = await db
+			.select()
+			.from(images)
+			.where(and(...conditions))
+			.orderBy(desc(images.createdAt))
+			.limit(limit)
+			.offset(offset);
+	}
+
+	// Get variations for each image
+	const imageIds = imageList.map((img) => img.id);
+	let variations: (typeof imageVariations.$inferSelect)[] = [];
+	if (imageIds.length > 0) {
+		const { inArray } = await import('drizzle-orm');
+		variations = await db
+			.select()
+			.from(imageVariations)
+			.where(inArray(imageVariations.imageId, imageIds));
+	}
+
+	// Get total count
+	let totalResult;
+	if (folderId === 'unsorted') {
+		const { isNull } = await import('drizzle-orm');
+		totalResult = await db
+			.select({ count: count() })
+			.from(images)
+			.where(and(eq(images.userId, locals.user.id), isNull(images.folderId)));
+	} else {
+		totalResult = await db
+			.select({ count: count() })
+			.from(images)
+			.where(and(...conditions));
+	}
+	const total = totalResult[0].count;
+
+	const result = imageList.map((img) => ({
+		...img,
+		variations: variations.filter((v) => v.imageId === img.id)
+	}));
+
+	return json({ images: result, page, limit, total });
+};
+
+export const POST: RequestHandler = async ({ locals, request }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const formData = await request.formData();
+	const file = formData.get('file') as File | null;
+	const folderIdStr = formData.get('folder_id') as string | null;
+
+	if (!file) error(400, 'No file provided');
+	if (!ALLOWED_TYPES.includes(file.type)) error(400, 'Unsupported file type');
+	if (file.size > MAX_FILE_SIZE) error(400, 'File too large (max 20MB)');
+
+	// Validate folder belongs to user
+	let folderSlug: string | null = null;
+	let folderId: number | null = null;
+	if (folderIdStr) {
+		const folderResult = await db
+			.select()
+			.from(folders)
+			.where(and(eq(folders.id, parseInt(folderIdStr)), eq(folders.userId, locals.user.id)))
+			.limit(1);
+
+		if (folderResult.length === 0) error(400, 'Folder not found');
+		folderId = folderResult[0].id;
+		folderSlug = folderResult[0].slug;
+	}
+
+	const inputBuffer = Buffer.from(await file.arrayBuffer());
+	const metadata = await getImageMetadata(inputBuffer);
+	const variations = await processImageVariations(inputBuffer);
+
+	// Insert image record to get ID
+	const [imageRecord] = await db
+		.insert(images)
+		.values({
+			userId: locals.user.id,
+			folderId,
+			originalFilename: file.name,
+			mimeType: file.type,
+			originalWidth: metadata.width,
+			originalHeight: metadata.height,
+			originalSizeBytes: metadata.sizeBytes,
+			storagePath: '' // Will update after we have the ID
+		})
+		.returning();
+
+	// Upload variations and save metadata
+	const storagePath = `${locals.user.id}/${folderSlug || 'unsorted'}/${imageRecord.id}`;
+	await db.update(images).set({ storagePath }).where(eq(images.id, imageRecord.id));
+
+	const variationRecords = [];
+	for (const variation of variations) {
+		const filename = `${variation.type}.webp`;
+		const fullPath = buildStoragePath(
+			locals.user.id,
+			folderSlug,
+			imageRecord.id,
+			filename
+		);
+		const cdnUrl = buildCdnUrl(fullPath);
+
+		await uploadFile(fullPath, variation.buffer);
+
+		const [record] = await db
+			.insert(imageVariations)
+			.values({
+				imageId: imageRecord.id,
+				variationType: variation.type,
+				width: variation.width,
+				height: variation.height,
+				sizeBytes: variation.sizeBytes,
+				format: variation.format,
+				storageFilename: filename,
+				cdnUrl
+			})
+			.returning();
+
+		variationRecords.push(record);
+	}
+
+	return json(
+		{
+			...imageRecord,
+			storagePath,
+			variations: variationRecords
+		},
+		{ status: 201 }
+	);
+};

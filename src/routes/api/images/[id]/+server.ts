@@ -1,0 +1,80 @@
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { db } from '$lib/server/db';
+import { images, imageVariations } from '$lib/server/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { deleteDirectory } from '$lib/server/bunny/storage';
+
+export const GET: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const imageId = parseInt(params.id);
+	if (isNaN(imageId)) error(400, 'Invalid image ID');
+
+	const [image] = await db
+		.select()
+		.from(images)
+		.where(and(eq(images.id, imageId), eq(images.userId, locals.user.id)))
+		.limit(1);
+
+	if (!image) error(404, 'Image not found');
+
+	const variations = await db
+		.select()
+		.from(imageVariations)
+		.where(eq(imageVariations.imageId, imageId));
+
+	return json({ ...image, variations });
+};
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const imageId = parseInt(params.id);
+	if (isNaN(imageId)) error(400, 'Invalid image ID');
+
+	const [image] = await db
+		.select()
+		.from(images)
+		.where(and(eq(images.id, imageId), eq(images.userId, locals.user.id)))
+		.limit(1);
+
+	if (!image) error(404, 'Image not found');
+
+	// Delete from bunny.net storage
+	try {
+		await deleteDirectory(image.storagePath);
+	} catch (e) {
+		console.error('Failed to delete from bunny.net:', e);
+	}
+
+	// Delete from database (cascade deletes variations)
+	await db.delete(images).where(eq(images.id, imageId));
+
+	return json({ success: true });
+};
+
+export const PATCH: RequestHandler = async ({ locals, params, request }) => {
+	if (!locals.user) error(401, 'Unauthorized');
+
+	const imageId = parseInt(params.id);
+	if (isNaN(imageId)) error(400, 'Invalid image ID');
+
+	const body = await request.json();
+	const { folderId } = body;
+
+	const [image] = await db
+		.select()
+		.from(images)
+		.where(and(eq(images.id, imageId), eq(images.userId, locals.user.id)))
+		.limit(1);
+
+	if (!image) error(404, 'Image not found');
+
+	await db
+		.update(images)
+		.set({ folderId: folderId ?? null })
+		.where(eq(images.id, imageId));
+
+	return json({ success: true });
+};

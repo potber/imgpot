@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://imgpot:imgpot@postgres:5432/imgpot
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: imgpot
+      POSTGRES_USER: imgpot
+      POSTGRES_PASSWORD: imgpot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imgpot"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
