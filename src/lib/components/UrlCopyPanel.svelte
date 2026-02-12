@@ -16,13 +16,11 @@
 
 	let { variations }: Props = $props();
 
-	const original = $derived(variations.find((v) => v.variationType === 'original'));
 	const large = $derived(variations.find((v) => v.variationType === 'large'));
 	const medium = $derived(variations.find((v) => v.variationType === 'medium'));
-	const small = $derived(variations.find((v) => v.variationType === 'small'));
 
 	const clickToEnlargeBBCode = $derived(
-		original && medium ? bbcodeClickToEnlarge(original.cdnUrl, medium.cdnUrl) : ''
+		large && medium ? bbcodeClickToEnlarge(large.cdnUrl, medium.cdnUrl) : ''
 	);
 </script>
 
