@@ -93,7 +93,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const inputBuffer = Buffer.from(await file.arrayBuffer());
-	const metadata = await getImageMetadata(inputBuffer);
+	let metadata;
+	try {
+		metadata = await getImageMetadata(inputBuffer);
+	} catch {
+		error(400, 'Unsupported or corrupt image file');
+	}
 
 	if (metadata.width > 8192 || metadata.height > 8192) {
 		error(400, 'Image dimensions too large (max 8192x8192)');
