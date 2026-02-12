@@ -27,4 +27,6 @@ COPY --from=builder /app/drizzle ./drizzle
 
 EXPOSE 3000
 
+USER node
+
 CMD ["sh", "-c", "node migrate.js && node build"]
