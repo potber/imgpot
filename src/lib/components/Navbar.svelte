@@ -36,7 +36,7 @@
 		<form method="POST" action="/auth/logout" class="flex items-center">
 			<button
 				type="submit"
-				class="text-sm text-gray-400 transition hover:text-white"
+				class="cursor-pointer text-sm text-gray-400 transition hover:text-white"
 			>
 				Logout
 			</button>
