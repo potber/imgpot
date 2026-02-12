@@ -27,11 +27,11 @@
 		>
 			Upload
 		</a>
-		<a href="/settings" class="hidden items-center gap-2 text-sm text-gray-300 transition hover:text-white sm:flex">
+		<a href="/settings" class="hidden items-center gap-2 text-gray-300 transition hover:text-white sm:flex">
 			{#if user.avatarUrl}
-				<img src={user.avatarUrl} alt="" class="h-6 rounded-full" />
+				<img src={user.avatarUrl} alt="" class="h-8 rounded-full" />
 			{/if}
-			{user.username}
+			<span class="text-sm">{user.username}</span>
 		</a>
 		<form method="POST" action="/auth/logout">
 			<button
