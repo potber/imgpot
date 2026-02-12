@@ -9,7 +9,7 @@ const config = {
 				'default-src': ['self'],
 				'script-src': ['self'],
 				'style-src': ['self', 'unsafe-inline'],
-				'img-src': ['self', 'https://*.b-cdn.net', 'https://*.imgpot.de', 'https://*.potber.de', 'https://*.mods.de', 'data:'],
+				'img-src': ['self', 'https://*.imgpot.de', 'https://*.potber.de', 'https://*.mods.de', 'data:'],
 				'font-src': ['self'],
 				'connect-src': ['self'],
 				'frame-ancestors': ['none'],
