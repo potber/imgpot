@@ -33,6 +33,9 @@
 			{/if}
 			<span class="text-sm text-gray-300">{user.username}</span>
 		</div>
+		<a href="/settings" class="text-sm text-gray-400 transition hover:text-white">
+			Settings
+		</a>
 		<form method="POST" action="/auth/logout">
 			<button
 				type="submit"
