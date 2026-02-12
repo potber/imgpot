@@ -159,7 +159,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				userId: locals.user.id,
 				folderId,
 				originalFilename: file.name,
-				mimeType: file.type,
+				mimeType: `image/${metadata.format}`,
 				originalWidth: metadata.width,
 				originalHeight: metadata.height,
 				originalSizeBytes: metadata.sizeBytes,
