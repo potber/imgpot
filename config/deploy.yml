@@ -1,0 +1,43 @@
+service: imgpot
+image: herrkris/imgpot
+
+servers:
+  web:
+    hosts:
+      - 91.99.74.154
+
+proxy:
+  ssl: true
+  host: imgpot.de
+  app_port: 3000
+  healthcheck:
+    path: /up
+    interval: 3
+
+registry:
+  server: localhost:5555
+
+env:
+  secret:
+    - DATABASE_URL
+    - BUNNY_STORAGE_ZONE
+    - BUNNY_STORAGE_API_KEY
+    - BUNNY_STORAGE_REGION
+    - BUNNY_CDN_HOSTNAME
+    - SESSION_SECRET
+
+builder:
+  arch: amd64
+
+accessories:
+  db:
+    image: postgres:17-alpine
+    host: 91.99.74.154
+    port: "127.0.0.1:5432:5432"
+    env:
+      secret:
+        - POSTGRES_USER
+        - POSTGRES_PASSWORD
+        - POSTGRES_DB
+    directories:
+      - data:/var/lib/postgresql/data

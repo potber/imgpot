@@ -16,8 +16,6 @@ function storageUrl(path: string): string {
 export async function uploadFile(path: string, buffer: Buffer): Promise<void> {
 	const { apiKey } = getStorageConfig();
 
-	console.log(storageUrl(path))
-
 	const response = await fetch(storageUrl(path), {
 		method: 'PUT',
 		headers: {

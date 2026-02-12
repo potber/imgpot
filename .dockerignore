@@ -1,0 +1,16 @@
+.git
+node_modules
+.svelte-kit
+build
+.devcontainer
+.env
+.env.*
+!.env.example
+drizzle/
+*.test.ts
+*.spec.ts
+src/test/
+.kamal/
+config/
+playwright-report/
+test-results/
