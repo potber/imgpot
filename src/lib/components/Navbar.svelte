@@ -32,7 +32,7 @@
 
 <svelte:window onclick={handleWindowClick} onkeydown={handleKeydown} />
 
-<nav class="flex h-14 items-center justify-between border-b border-gray-800 bg-gray-900 px-4 pt-[env(safe-area-inset-top)] sm:px-6">
+<nav class="flex items-center justify-between border-b border-gray-800 bg-gray-900 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-6">
 	<div class="flex items-center gap-3">
 		<button
 			onclick={onToggleSidebar}
