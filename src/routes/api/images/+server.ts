@@ -14,8 +14,8 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+	const page = Math.max(1, parseInt(url.searchParams.get('page') || '1') || 1);
+	const limit = Math.max(1, Math.min(parseInt(url.searchParams.get('limit') || '20') || 20, 100));
 	const folderId = url.searchParams.get('folder_id');
 	const offset = (page - 1) * limit;
 
@@ -102,8 +102,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const folderIdStr = formData.get('folder_id') as string | null;
 
 	if (!file) error(400, 'No file provided');
+	if (file.size === 0) error(400, 'File cannot be empty');
 	if (!ALLOWED_TYPES.includes(file.type)) error(400, 'Unsupported file type');
 	if (file.size > MAX_FILE_SIZE) error(400, 'File too large (max 20MB)');
+	if (!file.name || file.name.trim().length === 0) error(400, 'File must have a name');
+	if (file.name.length > 255) error(400, 'Filename too long (max 255 chars)');
 
 	// Validate folder belongs to user
 	let folderId: number | null = null;
@@ -120,68 +123,96 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	const inputBuffer = Buffer.from(await file.arrayBuffer());
 	const metadata = await getImageMetadata(inputBuffer);
-	const variations = await processImageVariations(inputBuffer);
 
-	let storageToken = generateStorageToken();
-	for (let attempt = 0; attempt < 5; attempt++) {
-		const [existing] = await db
-			.select({ id: images.id })
-			.from(images)
-			.where(eq(images.storageToken, storageToken))
-			.limit(1);
-		if (!existing) break;
-		storageToken = generateStorageToken();
-		if (attempt === 4) error(500, 'Failed to generate unique storage token');
+	if (metadata.width > 8192 || metadata.height > 8192) {
+		error(400, 'Image dimensions too large (max 8192x8192)');
 	}
 
-	// Insert image record
-	const [imageRecord] = await db
-		.insert(images)
-		.values({
-			userId: locals.user.id,
-			folderId,
-			originalFilename: file.name,
-			mimeType: file.type,
-			originalWidth: metadata.width,
-			originalHeight: metadata.height,
-			originalSizeBytes: metadata.sizeBytes,
-			storageToken,
-			storagePath: storageToken
-		})
-		.returning();
+	const variations = await processImageVariations(inputBuffer);
 
-	// Upload variations and save metadata
-	const variationRecords = [];
-	for (const variation of variations) {
-		const suffix = VARIATION_SUFFIXES[variation.type];
-		const filename = `${storageToken}${suffix}.webp`;
-		const fullPath = filename;
-		const cdnUrl = buildCdnUrl(fullPath);
+	const storageToken = generateStorageToken();
 
-		await uploadFile(fullPath, variation.buffer);
+	// Upload all variations to CDN first (before DB commit)
+	const uploadedFiles: string[] = [];
+	const variationData: {
+		type: (typeof variations)[number]['type'];
+		filename: string;
+		cdnUrl: string;
+		width: number;
+		height: number;
+		sizeBytes: number;
+		format: string;
+	}[] = [];
 
-		const [record] = await db
-			.insert(imageVariations)
-			.values({
-				imageId: imageRecord.id,
-				variationType: variation.type,
+	try {
+		for (const variation of variations) {
+			const suffix = VARIATION_SUFFIXES[variation.type];
+			const filename = `${storageToken}${suffix}.webp`;
+			const cdnUrl = buildCdnUrl(filename);
+
+			await uploadFile(filename, variation.buffer);
+			uploadedFiles.push(filename);
+
+			variationData.push({
+				type: variation.type,
+				filename,
+				cdnUrl,
 				width: variation.width,
 				height: variation.height,
 				sizeBytes: variation.sizeBytes,
-				format: variation.format,
-				storageFilename: filename,
-				cdnUrl
+				format: variation.format
+			});
+		}
+	} catch (e) {
+		// Clean up any files already uploaded
+		for (const f of uploadedFiles) {
+			try {
+				const { deleteFile } = await import('$lib/server/bunny/storage');
+				await deleteFile(f);
+			} catch {
+				// Best-effort cleanup
+			}
+		}
+		throw e;
+	}
+
+	// Atomically insert image + variations in a transaction
+	const result = await db.transaction(async (tx) => {
+		const [imageRecord] = await tx
+			.insert(images)
+			.values({
+				userId: locals.user.id,
+				folderId,
+				originalFilename: file.name,
+				mimeType: file.type,
+				originalWidth: metadata.width,
+				originalHeight: metadata.height,
+				originalSizeBytes: metadata.sizeBytes,
+				storageToken,
+				storagePath: storageToken
 			})
 			.returning();
 
-		variationRecords.push(record);
-	}
+		const variationRecords = [];
+		for (const v of variationData) {
+			const [record] = await tx
+				.insert(imageVariations)
+				.values({
+					imageId: imageRecord.id,
+					variationType: v.type,
+					width: v.width,
+					height: v.height,
+					sizeBytes: v.sizeBytes,
+					format: v.format,
+					storageFilename: v.filename,
+					cdnUrl: v.cdnUrl
+				})
+				.returning();
+			variationRecords.push(record);
+		}
 
-	return json(
-		{
-			...imageRecord,
-			variations: variationRecords
-		},
-		{ status: 201 }
-	);
+		return { ...imageRecord, variations: variationRecords };
+	});
+
+	return json(result, { status: 201 });
 };

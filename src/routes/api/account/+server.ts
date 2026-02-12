@@ -11,39 +11,40 @@ export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 
 	const userId = locals.user.id;
 
-	// Collect all CDN filenames for this user's images
+	// Collect CDN filenames before deleting from DB
 	const userImages = await db
 		.select({ id: images.id })
 		.from(images)
 		.where(eq(images.userId, userId));
 
+	let cdnFilenames: string[] = [];
 	if (userImages.length > 0) {
 		const imageIds = userImages.map((img) => img.id);
 		const variations = await db
 			.select({ storageFilename: imageVariations.storageFilename })
 			.from(imageVariations)
 			.where(inArray(imageVariations.imageId, imageIds));
-
-		// Delete all files from CDN
-		for (const v of variations) {
-			try {
-				await deleteFile(v.storageFilename);
-			} catch (e) {
-				console.error('Failed to delete CDN file:', v.storageFilename, e);
-			}
-		}
-
-		// Delete all images (cascades to image_variations)
-		await db.delete(images).where(eq(images.userId, userId));
+		cdnFilenames = variations.map((v) => v.storageFilename);
 	}
 
-	// Delete folders
-	await db.delete(folders).where(eq(folders.userId, userId));
+	// Delete all DB records atomically
+	await db.transaction(async (tx) => {
+		if (userImages.length > 0) {
+			await tx.delete(images).where(eq(images.userId, userId));
+		}
+		await tx.delete(folders).where(eq(folders.userId, userId));
+		await tx.delete(users).where(eq(users.id, userId));
+	});
 
-	// Delete user
-	await db.delete(users).where(eq(users.id, userId));
+	// Clean up CDN files after DB commit (best-effort)
+	for (const filename of cdnFilenames) {
+		try {
+			await deleteFile(filename);
+		} catch (e) {
+			console.error('Failed to delete CDN file:', filename, e);
+		}
+	}
 
-	// Destroy session
 	destroySession(cookies);
 
 	return json({ success: true });
