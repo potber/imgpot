@@ -6,18 +6,21 @@ Image hosting for [potber](https://potber.de). Users log in via potber-auth OAut
 
 - OAuth login via potber-auth
 - Drag-and-drop image uploads (JPEG, PNG, GIF, WebP, max 20MB)
-- Automatic WebP conversion with 4 size variations (original, large, medium, small)
+- Automatic WebP conversion with up to 3 size variations (large, medium, small — skips sizes larger than the original)
+- Opaque imgur-style CDN URLs (e.g. `aB3xK9mR2ql.webp`)
 - CDN delivery via bunny.net
 - Copy direct URLs and BBCode (including click-to-enlarge)
 - Folder organization
+- Account deletion with full CDN cleanup
 
 ## Tech Stack
 
-- SvelteKit (TypeScript)
+- SvelteKit with adapter-node (TypeScript)
 - PostgreSQL + Drizzle ORM
 - Sharp (image processing)
 - bunny.net (CDN storage)
 - Tailwind CSS
+- Kamal v2 (deployment)
 
 ## Getting Started
 
@@ -95,11 +98,39 @@ npm run dev       # start dev server on port 3000
 
 ## Image Variations
 
-Every uploaded image is converted to WebP and resized into 4 variations:
+Every uploaded image is converted to WebP. Variations that would require upscaling are skipped, and at least one variation is always produced:
 
 | Variation | Max Width | Quality | Use Case |
 |---|---|---|---|
-| original | unchanged | 90 | Full resolution |
 | large | 1600px | 82 | Click-to-enlarge |
 | medium | 800px | 80 | Inline forum embedding |
 | small | 320px | 78 | Thumbnails |
+
+CDN URLs are flat and unguessable: `https://imgpot.de/aB3xK9mR2ql.webp` (10-char base62 token + variation suffix).
+
+## Deployment
+
+The app deploys to a Hetzner VPS via [Kamal v2](https://kamal-deploy.org/).
+
+### Setup
+
+1. Copy the secrets template and fill in your values:
+
+   ```sh
+   cp .kamal/secrets.example .kamal/secrets
+   ```
+
+2. Deploy:
+
+   ```sh
+   kamal setup
+   ```
+
+Database migrations run automatically on container startup.
+
+### Schema Changes
+
+1. Edit schema files in `src/lib/server/db/schema/`
+2. Generate a migration: `npm run db:generate`
+3. Commit the migration file
+4. `kamal deploy` — migrations run automatically
