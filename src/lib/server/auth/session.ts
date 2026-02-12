@@ -17,7 +17,11 @@ export interface SessionUser {
 }
 
 function getSecret(): string {
-	return getEnv('SESSION_SECRET');
+	const secret = getEnv('SESSION_SECRET');
+	if (!dev && secret.length < 32) {
+		throw new Error('SESSION_SECRET must be at least 32 characters in production');
+	}
+	return secret;
 }
 
 function sign(value: string): string {
