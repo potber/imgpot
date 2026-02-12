@@ -1,8 +1,22 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSessionUser } from '$lib/server/auth/session';
+import { authenticateToken } from '$lib/server/auth/token';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const user = await getSessionUser(event.cookies);
+	let user = await getSessionUser(event.cookies);
+
+	if (!user) {
+		const auth = event.request.headers.get('Authorization');
+		if (auth?.startsWith('Bearer ')) {
+			const token = auth.slice(7);
+			try {
+				user = await authenticateToken(token);
+			} catch {
+				// invalid/expired token — user stays null, routes will return 401
+			}
+		}
+	}
+
 	event.locals.user = user;
 	event.locals.sessionId = user ? `${user.id}` : null;
 

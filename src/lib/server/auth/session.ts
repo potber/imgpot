@@ -9,7 +9,7 @@ import type { Cookies } from '@sveltejs/kit';
 const SESSION_COOKIE = 'session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-interface SessionUser {
+export interface SessionUser {
 	id: number;
 	potberUserId: string;
 	username: string;
@@ -39,18 +39,16 @@ function verify(signed: string): string | null {
 	return value;
 }
 
-export async function createSession(
-	cookies: Cookies,
-	potberUser: { userId: string; username: string; avatarUrl: string | null }
-): Promise<SessionUser> {
-	// Upsert user
+export async function upsertUser(potberUser: {
+	userId: string;
+	username: string;
+	avatarUrl: string | null;
+}): Promise<SessionUser> {
 	const existing = await db
 		.select()
 		.from(users)
 		.where(eq(users.potberUserId, potberUser.userId))
 		.limit(1);
-
-	let user: SessionUser;
 
 	if (existing.length > 0) {
 		const [updated] = await db
@@ -62,28 +60,35 @@ export async function createSession(
 			})
 			.where(eq(users.potberUserId, potberUser.userId))
 			.returning();
-		user = {
+		return {
 			id: updated.id,
 			potberUserId: updated.potberUserId,
 			username: updated.username,
 			avatarUrl: updated.avatarUrl
 		};
-	} else {
-		const [created] = await db
-			.insert(users)
-			.values({
-				potberUserId: potberUser.userId,
-				username: potberUser.username,
-				avatarUrl: potberUser.avatarUrl
-			})
-			.returning();
-		user = {
-			id: created.id,
-			potberUserId: created.potberUserId,
-			username: created.username,
-			avatarUrl: created.avatarUrl
-		};
 	}
+
+	const [created] = await db
+		.insert(users)
+		.values({
+			potberUserId: potberUser.userId,
+			username: potberUser.username,
+			avatarUrl: potberUser.avatarUrl
+		})
+		.returning();
+	return {
+		id: created.id,
+		potberUserId: created.potberUserId,
+		username: created.username,
+		avatarUrl: created.avatarUrl
+	};
+}
+
+export async function createSession(
+	cookies: Cookies,
+	potberUser: { userId: string; username: string; avatarUrl: string | null }
+): Promise<SessionUser> {
+	const user = await upsertUser(potberUser);
 
 	cookies.set(SESSION_COOKIE, sign(`${user.id}`), {
 		path: '/',

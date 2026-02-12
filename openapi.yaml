@@ -1,0 +1,444 @@
+openapi: 3.0.3
+info:
+  title: imgpot API
+  description: Image hosting API for potber users. Supports session cookie and Bearer token authentication.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://imgpot.de
+    description: Production
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  /api/images:
+    get:
+      summary: List images
+      description: Returns a paginated list of images belonging to the authenticated user.
+      tags: [Images]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: folder_id
+          in: query
+          description: Filter by folder ID, or `unsorted` for images without a folder.
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+                enum: [unsorted]
+      responses:
+        "200":
+          description: Paginated list of images
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [images, page, limit, total]
+                properties:
+                  images:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Image"
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Upload an image
+      description: Uploads an image file, processes it into size variations, and stores them on the CDN.
+      tags: [Images]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image file (JPEG, PNG, GIF, or WebP, max 20 MB, max 8192x8192)
+                folder_id:
+                  type: integer
+                  description: Target folder ID (must belong to the authenticated user)
+      responses:
+        "201":
+          description: Image created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Image"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/images/{id}:
+    get:
+      summary: Get an image
+      tags: [Images]
+      parameters:
+        - $ref: "#/components/parameters/ImageId"
+      responses:
+        "200":
+          description: Image details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Image"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Move an image to a folder
+      description: Updates the folder assignment. Set `folderId` to `null` to move to unsorted.
+      tags: [Images]
+      parameters:
+        - $ref: "#/components/parameters/ImageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folderId:
+                  type: integer
+                  nullable: true
+                  description: Target folder ID, or null for unsorted
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete an image
+      description: Deletes the image and all its variations from the database and CDN.
+      tags: [Images]
+      parameters:
+        - $ref: "#/components/parameters/ImageId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/folders:
+    get:
+      summary: List folders
+      tags: [Folders]
+      responses:
+        "200":
+          description: List of folders
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [folders]
+                properties:
+                  folders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Folder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Create a folder
+      tags: [Folders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                  description: Folder name (must produce a valid URL slug)
+      responses:
+        "201":
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: A folder with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/folders/{id}:
+    patch:
+      summary: Rename a folder
+      tags: [Folders]
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+      responses:
+        "200":
+          description: Folder updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: A folder with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a folder
+      description: Deletes the folder. Images in the folder are moved to unsorted.
+      tags: [Folders]
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/account:
+    delete:
+      summary: Delete account
+      description: Permanently deletes the user account, all images (including CDN files), and all folders. This action cannot be undone.
+      tags: [Account]
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Potber access token
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Signed session cookie (set by the browser login flow)
+
+  parameters:
+    ImageId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    FolderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    Image:
+      type: object
+      required:
+        - id
+        - userId
+        - folderId
+        - originalFilename
+        - mimeType
+        - originalWidth
+        - originalHeight
+        - originalSizeBytes
+        - storageToken
+        - storagePath
+        - createdAt
+        - variations
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        folderId:
+          type: integer
+          nullable: true
+        originalFilename:
+          type: string
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/gif, image/webp]
+        originalWidth:
+          type: integer
+        originalHeight:
+          type: integer
+        originalSizeBytes:
+          type: integer
+        storageToken:
+          type: string
+        storagePath:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        variations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageVariation"
+
+    ImageVariation:
+      type: object
+      required:
+        - id
+        - imageId
+        - variationType
+        - width
+        - height
+        - sizeBytes
+        - format
+        - storageFilename
+        - cdnUrl
+        - createdAt
+      properties:
+        id:
+          type: integer
+        imageId:
+          type: integer
+        variationType:
+          type: string
+          enum: [large, medium, small]
+        width:
+          type: integer
+        height:
+          type: integer
+        sizeBytes:
+          type: integer
+        format:
+          type: string
+        storageFilename:
+          type: string
+        cdnUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+
+    Folder:
+      type: object
+      required: [id, userId, name, slug, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    Success:
+      description: Operation succeeded
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success]
+            properties:
+              success:
+                type: boolean
+                enum: [true]
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
