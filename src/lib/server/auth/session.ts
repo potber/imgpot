@@ -1,6 +1,9 @@
+import crypto from 'node:crypto';
+import { dev } from '$app/environment';
 import { db } from '../db/index';
 import { users } from '../db/schema/index';
 import { eq } from 'drizzle-orm';
+import { getEnv } from '../env';
 import type { Cookies } from '@sveltejs/kit';
 
 const SESSION_COOKIE = 'session';
@@ -11,6 +14,29 @@ interface SessionUser {
 	potberUserId: string;
 	username: string;
 	avatarUrl: string | null;
+}
+
+function getSecret(): string {
+	return getEnv('SESSION_SECRET');
+}
+
+function sign(value: string): string {
+	const sig = crypto.createHmac('sha256', getSecret()).update(value).digest('base64url');
+	return `${value}.${sig}`;
+}
+
+function verify(signed: string): string | null {
+	const idx = signed.lastIndexOf('.');
+	if (idx === -1) return null;
+
+	const value = signed.slice(0, idx);
+	const sig = signed.slice(idx + 1);
+	if (!value || !sig) return null;
+
+	const expected = crypto.createHmac('sha256', getSecret()).update(value).digest('base64url');
+	if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+
+	return value;
 }
 
 export async function createSession(
@@ -59,14 +85,11 @@ export async function createSession(
 		};
 	}
 
-	// Store the user ID as session value (signed via cookie secret in hooks)
-	const sessionId = `${user.id}`;
-
-	cookies.set(SESSION_COOKIE, sessionId, {
+	cookies.set(SESSION_COOKIE, sign(`${user.id}`), {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: false, // Allow HTTP in dev (localhost:3000)
+		secure: !dev,
 		maxAge: SESSION_MAX_AGE
 	});
 
@@ -74,7 +97,10 @@ export async function createSession(
 }
 
 export async function getSessionUser(cookies: Cookies): Promise<SessionUser | null> {
-	const sessionId = cookies.get(SESSION_COOKIE);
+	const raw = cookies.get(SESSION_COOKIE);
+	if (!raw) return null;
+
+	const sessionId = verify(raw);
 	if (!sessionId) return null;
 
 	const userId = parseInt(sessionId, 10);
