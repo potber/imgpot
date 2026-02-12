@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { folders, images } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { slugify } from '$lib/utils/slugify';
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -10,7 +11,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const folderId = parseInt(params.id);
 	if (isNaN(folderId)) error(400, 'Invalid folder ID');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		error(400, 'Invalid JSON');
+	}
 	const { name } = body;
 
 	if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -26,10 +32,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!folder) error(404, 'Folder not found');
 
 	const trimmedName = name.trim();
-	const slug = trimmedName
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-|-$/g, '');
+	const slug = slugify(trimmedName);
 
 	try {
 		const [updated] = await db

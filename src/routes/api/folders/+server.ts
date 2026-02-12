@@ -3,13 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { folders } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-
-function slugify(name: string): string {
-	return name
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-|-$/g, '');
-}
+import { slugify } from '$lib/utils/slugify';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -26,7 +20,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		error(400, 'Invalid JSON');
+	}
 	const { name } = body;
 
 	if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -34,6 +33,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const trimmedName = name.trim();
+	if (trimmedName.length > 100) error(400, 'Folder name too long (max 100 chars)');
 	const slug = slugify(trimmedName);
 
 	if (!slug) {
