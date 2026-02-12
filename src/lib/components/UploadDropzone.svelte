@@ -109,7 +109,7 @@
 	</div>
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
+	<label
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
@@ -121,20 +121,20 @@
 		{:else}
 			<p class="mb-2 text-gray-400">Drag & drop images here</p>
 			<p class="mb-4 text-sm text-gray-500">JPEG, PNG, GIF, or WebP (max 20MB)</p>
-			<label
-				class="cursor-pointer rounded-lg bg-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-600"
+			<span
+				class="rounded-lg bg-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-600"
 			>
 				Choose files
-				<input
-					type="file"
-					accept="image/jpeg,image/png,image/gif,image/webp"
-					multiple
-					class="hidden"
-					onchange={handleFileInput}
-				/>
-			</label>
+			</span>
+			<input
+				type="file"
+				accept="image/jpeg,image/png,image/gif,image/webp"
+				multiple
+				class="hidden"
+				onchange={handleFileInput}
+			/>
 		{/if}
-	</div>
+	</label>
 
 	{#if errorMessage}
 		<p class="text-sm text-red-400">{errorMessage}</p>
