@@ -26,27 +26,16 @@ describe('getImageMetadata', () => {
 });
 
 describe('processImageVariations', () => {
-	it('produces 4 WebP variations from a large image', async () => {
+	it('produces 3 WebP variations from a large image', async () => {
 		const buffer = await createTestImage(2000, 1500);
 		const variations = await processImageVariations(buffer);
 
-		expect(variations).toHaveLength(4);
-		expect(variations.map((v) => v.type)).toEqual(['original', 'large', 'medium', 'small']);
+		expect(variations).toHaveLength(3);
+		expect(variations.map((v) => v.type)).toEqual(['large', 'medium', 'small']);
 		variations.forEach((v) => {
 			expect(v.format).toBe('webp');
 			expect(v.sizeBytes).toBeGreaterThan(0);
-			expect(v.width).toBeGreaterThan(0);
-			expect(v.height).toBeGreaterThan(0);
 		});
-	});
-
-	it('preserves original dimensions for original variation', async () => {
-		const buffer = await createTestImage(2000, 1500);
-		const variations = await processImageVariations(buffer);
-
-		const original = variations.find((v) => v.type === 'original')!;
-		expect(original.width).toBe(2000);
-		expect(original.height).toBe(1500);
 	});
 
 	it('resizes large variation to max 1600px width', async () => {
@@ -76,14 +65,24 @@ describe('processImageVariations', () => {
 		expect(small.height).toBe(240);
 	});
 
-	it('does not upscale small images', async () => {
+	it('skips variations larger than the original', async () => {
+		const buffer = await createTestImage(600, 450);
+		const variations = await processImageVariations(buffer);
+
+		// 600px is smaller than large (1600) and medium (800), only small (320) fits
+		expect(variations).toHaveLength(1);
+		expect(variations[0].type).toBe('small');
+		expect(variations[0].width).toBe(320);
+	});
+
+	it('produces at least one variation for tiny images', async () => {
 		const buffer = await createTestImage(200, 150);
 		const variations = await processImageVariations(buffer);
 
-		// All variations should be 200x150 since the image is smaller than all maxWidths
-		variations.forEach((v) => {
-			expect(v.width).toBe(200);
-			expect(v.height).toBe(150);
-		});
+		// Image is smaller than all thresholds, still get one "small" at original size
+		expect(variations).toHaveLength(1);
+		expect(variations[0].type).toBe('small');
+		expect(variations[0].width).toBe(200);
+		expect(variations[0].height).toBe(150);
 	});
 });

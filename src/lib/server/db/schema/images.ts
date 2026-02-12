@@ -13,6 +13,7 @@ export const images = pgTable('images', {
 	originalWidth: integer('original_width').notNull(),
 	originalHeight: integer('original_height').notNull(),
 	originalSizeBytes: integer('original_size_bytes').notNull(),
+	storageToken: text('storage_token').notNull(),
 	storagePath: text('storage_path').notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });

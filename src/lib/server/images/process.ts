@@ -33,17 +33,34 @@ export async function processImageVariations(
 	const results: ProcessedVariation[] = [];
 
 	for (const config of VARIATION_CONFIGS) {
-		let pipeline = sharp(inputBuffer);
+		// Skip variations that would require upscaling
+		if (originalWidth <= config.maxWidth) continue;
 
-		if (config.maxWidth !== null && originalWidth > config.maxWidth) {
-			pipeline = pipeline.resize(config.maxWidth, undefined, { withoutEnlargement: true });
-		}
-
-		const outputBuffer = await pipeline.webp({ quality: config.quality }).toBuffer();
+		const outputBuffer = await sharp(inputBuffer)
+			.resize(config.maxWidth, undefined, { withoutEnlargement: true })
+			.webp({ quality: config.quality })
+			.toBuffer();
 		const outputMeta = await sharp(outputBuffer).metadata();
 
 		results.push({
 			type: config.type,
+			buffer: outputBuffer,
+			width: outputMeta.width!,
+			height: outputMeta.height!,
+			sizeBytes: outputBuffer.length,
+			format: 'webp'
+		});
+	}
+
+	// Always produce at least one variation (the smallest that fits)
+	if (results.length === 0) {
+		const outputBuffer = await sharp(inputBuffer)
+			.webp({ quality: VARIATION_CONFIGS[VARIATION_CONFIGS.length - 1].quality })
+			.toBuffer();
+		const outputMeta = await sharp(outputBuffer).metadata();
+
+		results.push({
+			type: 'small',
 			buffer: outputBuffer,
 			width: outputMeta.width!,
 			height: outputMeta.height!,

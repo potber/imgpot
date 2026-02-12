@@ -21,6 +21,8 @@ registry:
     - KAMAL_REGISTRY_PASSWORD
 
 env:
+  clear:
+    BODY_SIZE_LIMIT: "25M"
   secret:
     - DATABASE_URL
     - BUNNY_STORAGE_ZONE

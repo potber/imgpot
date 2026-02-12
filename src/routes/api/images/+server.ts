@@ -5,7 +5,8 @@ import { images, imageVariations, folders } from '$lib/server/db/schema';
 import { eq, desc, and, count } from 'drizzle-orm';
 import { processImageVariations, getImageMetadata } from '$lib/server/images/process';
 import { uploadFile } from '$lib/server/bunny/storage';
-import { buildCdnUrl, buildStoragePath } from '$lib/server/bunny/cdn';
+import { buildCdnUrl, generateStorageToken } from '$lib/server/bunny/cdn';
+import { VARIATION_SUFFIXES } from '$lib/server/images/variations';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -105,7 +106,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (file.size > MAX_FILE_SIZE) error(400, 'File too large (max 20MB)');
 
 	// Validate folder belongs to user
-	let folderSlug: string | null = null;
 	let folderId: number | null = null;
 	if (folderIdStr) {
 		const folderResult = await db
@@ -116,14 +116,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		if (folderResult.length === 0) error(400, 'Folder not found');
 		folderId = folderResult[0].id;
-		folderSlug = folderResult[0].slug;
 	}
 
 	const inputBuffer = Buffer.from(await file.arrayBuffer());
 	const metadata = await getImageMetadata(inputBuffer);
 	const variations = await processImageVariations(inputBuffer);
 
-	// Insert image record to get ID
+	let storageToken = generateStorageToken();
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const [existing] = await db
+			.select({ id: images.id })
+			.from(images)
+			.where(eq(images.storageToken, storageToken))
+			.limit(1);
+		if (!existing) break;
+		storageToken = generateStorageToken();
+		if (attempt === 4) error(500, 'Failed to generate unique storage token');
+	}
+
+	// Insert image record
 	const [imageRecord] = await db
 		.insert(images)
 		.values({
@@ -134,23 +145,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			originalWidth: metadata.width,
 			originalHeight: metadata.height,
 			originalSizeBytes: metadata.sizeBytes,
-			storagePath: '' // Will update after we have the ID
+			storageToken,
+			storagePath: storageToken
 		})
 		.returning();
 
 	// Upload variations and save metadata
-	const storagePath = `${locals.user.id}/${folderSlug || 'unsorted'}/${imageRecord.id}`;
-	await db.update(images).set({ storagePath }).where(eq(images.id, imageRecord.id));
-
 	const variationRecords = [];
 	for (const variation of variations) {
-		const filename = `${variation.type}.webp`;
-		const fullPath = buildStoragePath(
-			locals.user.id,
-			folderSlug,
-			imageRecord.id,
-			filename
-		);
+		const suffix = VARIATION_SUFFIXES[variation.type];
+		const filename = `${storageToken}${suffix}.webp`;
+		const fullPath = filename;
 		const cdnUrl = buildCdnUrl(fullPath);
 
 		await uploadFile(fullPath, variation.buffer);
@@ -175,7 +180,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	return json(
 		{
 			...imageRecord,
-			storagePath,
 			variations: variationRecords
 		},
 		{ status: 201 }

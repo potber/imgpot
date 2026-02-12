@@ -2,7 +2,6 @@ import { pgTable, serial, text, integer, timestamp, pgEnum } from 'drizzle-orm/p
 import { images } from './images';
 
 export const variationTypeEnum = pgEnum('variation_type', [
-	'original',
 	'large',
 	'medium',
 	'small'

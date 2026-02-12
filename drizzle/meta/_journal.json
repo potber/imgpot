@@ -8,6 +8,20 @@
       "when": 1770904336008,
       "tag": "0000_steep_trauma",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770909264576,
+      "tag": "0001_lethal_grim_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770909927394,
+      "tag": "0002_pale_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }

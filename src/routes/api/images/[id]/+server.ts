@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { images, imageVariations } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { deleteDirectory } from '$lib/server/bunny/storage';
+import { deleteFile } from '$lib/server/bunny/storage';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -41,11 +41,19 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 	if (!image) error(404, 'Image not found');
 
-	// Delete from bunny.net storage
-	try {
-		await deleteDirectory(image.storagePath);
-	} catch (e) {
-		console.error('Failed to delete from bunny.net:', e);
+	// Get variation filenames before deleting from DB
+	const variations = await db
+		.select({ storageFilename: imageVariations.storageFilename })
+		.from(imageVariations)
+		.where(eq(imageVariations.imageId, imageId));
+
+	// Delete files from bunny.net storage
+	for (const v of variations) {
+		try {
+			await deleteFile(v.storageFilename);
+		} catch (e) {
+			console.error('Failed to delete from bunny.net:', e);
+		}
 	}
 
 	// Delete from database (cascade deletes variations)
