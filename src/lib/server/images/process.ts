@@ -6,10 +6,13 @@ const MAX_INPUT_PIXELS = 8192 * 8192;
 
 const SHARP_OPTIONS: sharp.SharpOptions = { limitInputPixels: MAX_INPUT_PIXELS };
 
+const ALLOWED_FORMATS = new Set(['jpeg', 'png', 'gif', 'webp']);
+
 export interface ImageMetadata {
 	width: number;
 	height: number;
 	sizeBytes: number;
+	format: string;
 }
 
 export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
@@ -17,10 +20,14 @@ export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
 	if (!metadata.width || !metadata.height) {
 		throw new Error('Could not read image dimensions');
 	}
+	if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
+		throw new Error(`Unsupported image format: ${metadata.format || 'unknown'}`);
+	}
 	return {
 		width: metadata.width,
 		height: metadata.height,
-		sizeBytes: buffer.length
+		sizeBytes: buffer.length,
+		format: metadata.format
 	};
 }
 
