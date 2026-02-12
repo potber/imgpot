@@ -1,6 +1,11 @@
 import sharp from 'sharp';
 import { VARIATION_CONFIGS, type ProcessedVariation } from './variations';
 
+// 8192 * 8192 = 67,108,864 pixels — matches our dimension validation
+const MAX_INPUT_PIXELS = 8192 * 8192;
+
+const SHARP_OPTIONS: sharp.SharpOptions = { limitInputPixels: MAX_INPUT_PIXELS };
+
 export interface ImageMetadata {
 	width: number;
 	height: number;
@@ -8,7 +13,7 @@ export interface ImageMetadata {
 }
 
 export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
-	const metadata = await sharp(buffer).metadata();
+	const metadata = await sharp(buffer, SHARP_OPTIONS).metadata();
 	if (!metadata.width || !metadata.height) {
 		throw new Error('Could not read image dimensions');
 	}
@@ -22,13 +27,12 @@ export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
 export async function processImageVariations(
 	inputBuffer: Buffer
 ): Promise<ProcessedVariation[]> {
-	const metadata = await sharp(inputBuffer).metadata();
+	const metadata = await sharp(inputBuffer, SHARP_OPTIONS).metadata();
 	if (!metadata.width || !metadata.height) {
 		throw new Error('Could not read image dimensions');
 	}
 
 	const originalWidth = metadata.width;
-	const originalHeight = metadata.height;
 
 	const results: ProcessedVariation[] = [];
 
@@ -36,7 +40,7 @@ export async function processImageVariations(
 		// Skip variations that would require upscaling
 		if (originalWidth <= config.maxWidth) continue;
 
-		const outputBuffer = await sharp(inputBuffer)
+		const outputBuffer = await sharp(inputBuffer, SHARP_OPTIONS)
 			.resize(config.maxWidth, undefined, { withoutEnlargement: true })
 			.webp({ quality: config.quality })
 			.toBuffer();
@@ -54,7 +58,7 @@ export async function processImageVariations(
 
 	// Always produce at least one variation (the smallest that fits)
 	if (results.length === 0) {
-		const outputBuffer = await sharp(inputBuffer)
+		const outputBuffer = await sharp(inputBuffer, SHARP_OPTIONS)
 			.webp({ quality: VARIATION_CONFIGS[VARIATION_CONFIGS.length - 1].quality })
 			.toBuffer();
 		const outputMeta = await sharp(outputBuffer).metadata();
