@@ -6,6 +6,7 @@
 	let { data, children } = $props();
 	let sidebarOpen = $state(false);
 	let isLargeScreen = $state(false);
+	let navbarHeight = $state(0);
 
 	onMount(() => {
 		const mql = window.matchMedia('(min-width: 1024px)');
@@ -33,9 +34,11 @@
 </script>
 
 <div class="flex min-h-screen flex-col bg-gray-950 text-white">
-	<Navbar user={data.user} onToggleSidebar={toggleSidebar} />
+	<div bind:offsetHeight={navbarHeight}>
+		<Navbar user={data.user} onToggleSidebar={toggleSidebar} />
+	</div>
 	<div class="relative flex flex-1">
-		<FolderSidebar folders={data.folders} open={sidebarOpen} onClose={closeSidebar} />
+		<FolderSidebar folders={data.folders} open={sidebarOpen} onClose={closeSidebar} {navbarHeight} />
 		<main class="flex-1 p-4 sm:p-6">
 			{@render children()}
 		</main>
