@@ -1,4 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { getSessionUser } from '$lib/server/auth/session';
 import { authenticateToken } from '$lib/server/auth/token';
 import { RateLimiter } from '$lib/server/rate-limit';
@@ -46,6 +47,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	if (!dev) {
+		response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+	}
 
 	return response;
 };
