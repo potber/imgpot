@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	if (!folder) error(404, 'Folder not found');
 
-	const page = parseInt(url.searchParams.get('page') || '1');
+	const page = Math.max(1, parseInt(url.searchParams.get('page') || '1') || 1);
 	const limit = 20;
 	const offset = (page - 1) * limit;
 

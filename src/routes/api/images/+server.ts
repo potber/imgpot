@@ -79,10 +79,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// Validate folder belongs to user
 	let folderId: number | null = null;
 	if (folderIdStr) {
+		const parsedFolderId = parseInt(folderIdStr);
+		if (isNaN(parsedFolderId)) error(400, 'Invalid folder ID');
+
 		const folderResult = await db
 			.select()
 			.from(folders)
-			.where(and(eq(folders.id, parseInt(folderIdStr)), eq(folders.userId, locals.user.id)))
+			.where(and(eq(folders.id, parsedFolderId), eq(folders.userId, locals.user.id)))
 			.limit(1);
 
 		if (folderResult.length === 0) error(400, 'Folder not found');

@@ -5,7 +5,7 @@ import { eq, desc, and, isNull, inArray, count } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = locals.user!;
-	const page = parseInt(url.searchParams.get('page') || '1');
+	const page = Math.max(1, parseInt(url.searchParams.get('page') || '1') || 1);
 	const limit = 20;
 	const offset = (page - 1) * limit;
 	const folderFilter = url.searchParams.get('folder');
