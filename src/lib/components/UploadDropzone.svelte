@@ -102,7 +102,7 @@
 			>
 				<option value="">Unsorted</option>
 				{#each folders as folder}
-					<option value={folder.id}>{folder.name}</option>
+					<option value={String(folder.id)}>{folder.name}</option>
 				{/each}
 			</select>
 		</label>
