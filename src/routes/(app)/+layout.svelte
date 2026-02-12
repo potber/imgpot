@@ -5,11 +5,20 @@
 
 	let { data, children } = $props();
 	let sidebarOpen = $state(false);
+	let isLargeScreen = $state(false);
 
 	onMount(() => {
-		if (window.matchMedia('(min-width: 1024px)').matches) {
-			sidebarOpen = true;
+		const mql = window.matchMedia('(min-width: 1024px)');
+		isLargeScreen = mql.matches;
+		sidebarOpen = mql.matches;
+
+		function onChange(e: MediaQueryListEvent) {
+			isLargeScreen = e.matches;
+			sidebarOpen = e.matches;
 		}
+
+		mql.addEventListener('change', onChange);
+		return () => mql.removeEventListener('change', onChange);
 	});
 
 	function toggleSidebar() {
@@ -17,7 +26,9 @@
 	}
 
 	function closeSidebar() {
-		sidebarOpen = false;
+		if (!isLargeScreen) {
+			sidebarOpen = false;
+		}
 	}
 </script>
 
