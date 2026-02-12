@@ -8,7 +8,8 @@
 		const hash = window.location.hash.substring(1);
 		const params = new URLSearchParams(hash);
 		const accessToken = params.get('access_token');
-		const state = params.get('state');
+		const state = sessionStorage.getItem('oauth_state');
+		sessionStorage.removeItem('oauth_state');
 
 		if (!accessToken) {
 			status = 'Authentication failed. No access token received.';

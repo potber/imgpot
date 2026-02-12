@@ -23,5 +23,5 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 	const redirectUri = `${url.origin}/auth/callback`;
 	const authUrl = buildAuthorizationUrl(redirectUri, state);
 
-	return { authUrl };
+	return { authUrl, state };
 };

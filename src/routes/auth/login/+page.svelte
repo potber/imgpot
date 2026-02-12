@@ -1,5 +1,9 @@
 <script lang="ts">
 	let { data } = $props();
+
+	function handleLogin() {
+		sessionStorage.setItem('oauth_state', data.state);
+	}
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-950">
@@ -8,6 +12,7 @@
 		<p class="mb-6 text-gray-400">Image hosting for us</p>
 		<a
 			href={data.authUrl}
+			onclick={handleLogin}
 			class="inline-block w-full rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-500"
 		>
 			Sign in
