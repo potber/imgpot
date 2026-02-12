@@ -13,9 +13,12 @@ proxy:
   healthcheck:
     path: /up
     interval: 3
-
+    
 registry:
-  server: localhost:5555
+  server: ghcr.io
+  username: herrkris
+  password:
+    - KAMAL_REGISTRY_PASSWORD
 
 env:
   secret:
@@ -27,7 +30,11 @@ env:
     - SESSION_SECRET
 
 builder:
-  arch: amd64
+  arch: arm64
+
+ssh:
+  user: imgpot
+  port: 2222
 
 accessories:
   db:

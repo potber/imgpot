@@ -6,7 +6,6 @@ build
 .env
 .env.*
 !.env.example
-drizzle/
 *.test.ts
 *.spec.ts
 src/test/
