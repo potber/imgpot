@@ -31,7 +31,7 @@
 		</button>
 	</div>
 
-	<ImageGrid images={data.images} />
+	<ImageGrid images={data.images} folderId={data.folder.id} />
 
 	{#if data.totalPages > 1}
 		<div class="mt-6 flex items-center justify-center gap-2">

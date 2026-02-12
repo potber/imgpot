@@ -4,16 +4,19 @@
 
 	interface Props {
 		images: any[];
+		folderId?: number;
 		children?: Snippet;
 	}
 
-	let { images, children }: Props = $props();
+	let { images, folderId, children }: Props = $props();
+
+	const uploadHref = $derived(folderId ? `/upload?folder=${folderId}` : '/upload');
 </script>
 
 {#if images.length === 0}
 	<div class="flex flex-col items-center justify-center py-20 text-center">
 		<p class="mb-2 text-lg text-gray-400">No images yet</p>
-		<a href="/upload" class="text-blue-400 transition hover:text-blue-300">Upload your first image</a>
+		<a href={uploadHref} class="text-blue-400 transition hover:text-blue-300">Upload your first image</a>
 	</div>
 {:else}
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

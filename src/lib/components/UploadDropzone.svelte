@@ -14,14 +14,15 @@
 
 	interface Props {
 		folders: Folder[];
+		initialFolderId?: string;
 	}
 
-	let { folders }: Props = $props();
+	let { folders, initialFolderId = '' }: Props = $props();
 
 	let dragOver = $state(false);
 	let uploading = $state(false);
 	let progress = $state('');
-	let selectedFolderId = $state('');
+	let selectedFolderId = $state(initialFolderId);
 	let results = $state<UploadResult[]>([]);
 	let errorMessage = $state('');
 
