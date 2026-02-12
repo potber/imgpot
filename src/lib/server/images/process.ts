@@ -15,6 +15,10 @@ export interface ImageMetadata {
 	format: string;
 }
 
+function sharpInput(buffer: Buffer, animated: boolean): sharp.Sharp {
+	return sharp(buffer, { ...SHARP_OPTIONS, animated });
+}
+
 export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
 	const metadata = await sharp(buffer, SHARP_OPTIONS).metadata();
 	if (!metadata.width || !metadata.height) {
@@ -40,6 +44,7 @@ export async function processImageVariations(
 	}
 
 	const originalWidth = metadata.width;
+	const isAnimated = metadata.format === 'gif' || (metadata.pages ?? 0) > 1;
 
 	const results: ProcessedVariation[] = [];
 
@@ -47,7 +52,7 @@ export async function processImageVariations(
 		// Skip variations that would require upscaling
 		if (originalWidth <= config.maxWidth) continue;
 
-		const outputBuffer = await sharp(inputBuffer, SHARP_OPTIONS)
+		const outputBuffer = await sharpInput(inputBuffer, isAnimated)
 			.resize(config.maxWidth, undefined, { withoutEnlargement: true })
 			.webp({ quality: config.quality })
 			.toBuffer();
@@ -65,7 +70,7 @@ export async function processImageVariations(
 
 	// Always produce at least one variation (the smallest that fits)
 	if (results.length === 0) {
-		const outputBuffer = await sharp(inputBuffer, SHARP_OPTIONS)
+		const outputBuffer = await sharpInput(inputBuffer, isAnimated)
 			.webp({ quality: VARIATION_CONFIGS[VARIATION_CONFIGS.length - 1].quality })
 			.toBuffer();
 		const outputMeta = await sharp(outputBuffer).metadata();
