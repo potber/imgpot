@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { images, imageVariations } from '$lib/server/db/schema';
+import { images, imageVariations, folders } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { deleteFile } from '$lib/server/bunny/storage';
 
@@ -78,6 +78,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		.limit(1);
 
 	if (!image) error(404, 'Image not found');
+
+	// Validate folder belongs to current user
+	if (folderId !== undefined && folderId !== null) {
+		const [folder] = await db
+			.select({ id: folders.id })
+			.from(folders)
+			.where(and(eq(folders.id, folderId), eq(folders.userId, locals.user.id)))
+			.limit(1);
+		if (!folder) error(400, 'Folder not found');
+	}
 
 	await db
 		.update(images)
