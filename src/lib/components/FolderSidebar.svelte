@@ -45,8 +45,9 @@
 
 
 <aside
-	style="top: {navbarHeight}px; height: calc(100% - {navbarHeight}px);"
+	style:--navbar-h="{navbarHeight}px"
 	class="fixed left-0 z-30 w-56 shrink-0 border-r border-gray-800 bg-gray-900 p-4 transition-transform duration-200
+		top-[var(--navbar-h)] h-[calc(100%-var(--navbar-h))]
 		lg:static lg:z-auto lg:h-auto lg:min-h-full
 		{open ? 'translate-x-0' : '-translate-x-full'}"
 >
