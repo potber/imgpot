@@ -33,7 +33,7 @@
 			{/if}
 			<span class="text-sm">{user.username}</span>
 		</a>
-		<form method="POST" action="/auth/logout">
+		<form method="POST" action="/auth/logout" class="flex items-center">
 			<button
 				type="submit"
 				class="text-sm text-gray-400 transition hover:text-white"
