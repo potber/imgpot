@@ -44,7 +44,7 @@
 
 
 <aside
-	class="fixed top-14 left-0 z-30 h-[calc(100%-3.5rem)] w-56 shrink-0 border-r border-gray-800 bg-gray-900 p-4 transition-transform duration-200
+	class="fixed top-[calc(3.5rem+env(safe-area-inset-top))] left-0 z-30 h-[calc(100%-3.5rem-env(safe-area-inset-top))] w-56 shrink-0 border-r border-gray-800 bg-gray-900 p-4 transition-transform duration-200
 		lg:static lg:z-auto lg:h-auto lg:min-h-full
 		{open ? 'translate-x-0' : '-translate-x-full'}"
 >
