@@ -16,20 +16,23 @@ export interface ImageMetadata {
 }
 
 function sharpInput(buffer: Buffer, animated: boolean): sharp.Sharp {
-	return sharp(buffer, { ...SHARP_OPTIONS, animated });
+	return sharp(buffer, { ...SHARP_OPTIONS, animated }).rotate();
 }
 
 export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
-	const metadata = await sharp(buffer, SHARP_OPTIONS).metadata();
+	const pipeline = sharp(buffer, SHARP_OPTIONS).rotate();
+	const metadata = await pipeline.metadata();
 	if (!metadata.width || !metadata.height) {
 		throw new Error('Could not read image dimensions');
 	}
 	if (!metadata.format || !ALLOWED_FORMATS.has(metadata.format)) {
 		throw new Error(`Unsupported image format: ${metadata.format || 'unknown'}`);
 	}
+	// Get rotated dimensions by running the pipeline
+	const { info } = await pipeline.toBuffer({ resolveWithObject: true });
 	return {
-		width: metadata.width,
-		height: metadata.height,
+		width: info.width,
+		height: info.height,
 		sizeBytes: buffer.length,
 		format: metadata.format
 	};
@@ -38,12 +41,15 @@ export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
 export async function processImageVariations(
 	inputBuffer: Buffer
 ): Promise<ProcessedVariation[]> {
-	const metadata = await sharp(inputBuffer, SHARP_OPTIONS).metadata();
+	const pipeline = sharp(inputBuffer, SHARP_OPTIONS).rotate();
+	const metadata = await pipeline.metadata();
 	if (!metadata.width || !metadata.height) {
 		throw new Error('Could not read image dimensions');
 	}
 
-	const originalWidth = metadata.width;
+	// Get rotated dimensions to determine correct sizing
+	const { info } = await pipeline.toBuffer({ resolveWithObject: true });
+	const originalWidth = info.width;
 	const isAnimated = metadata.format === 'gif' || (metadata.pages ?? 0) > 1;
 
 	const results: ProcessedVariation[] = [];
