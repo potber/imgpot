@@ -11,11 +11,12 @@ interface PotberSession {
 	exp: number;
 }
 
-export function buildAuthorizationUrl(redirectUri: string): string {
+export function buildAuthorizationUrl(redirectUri: string, state: string): string {
 	const params = new URLSearchParams({
 		client_id: CLIENT_ID,
 		redirect_uri: redirectUri,
-		response_type: 'token'
+		response_type: 'token',
+		state
 	});
 	return `${POTBER_AUTH_BASE}/authorize?${params.toString()}`;
 }

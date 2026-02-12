@@ -8,6 +8,7 @@
 		const hash = window.location.hash.substring(1);
 		const params = new URLSearchParams(hash);
 		const accessToken = params.get('access_token');
+		const state = params.get('state');
 
 		if (!accessToken) {
 			status = 'Authentication failed. No access token received.';
@@ -18,7 +19,7 @@
 			const response = await fetch('/auth/exchange', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ accessToken })
+				body: JSON.stringify({ accessToken, state })
 			});
 
 			if (!response.ok) {
