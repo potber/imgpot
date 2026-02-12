@@ -68,7 +68,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const imageId = parseInt(params.id);
 	if (isNaN(imageId)) error(400, 'Invalid image ID');
 
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		error(400, 'Invalid JSON');
+	}
 	const { folderId } = body;
 
 	const [image] = await db
