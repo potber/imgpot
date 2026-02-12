@@ -1,0 +1,8 @@
+{
+	"name": "imgpot",
+	"short_name": "imgpot",
+	"start_url": "/dashboard",
+	"display": "standalone",
+	"background_color": "#030712",
+	"theme_color": "#030712"
+}
