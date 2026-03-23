@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import { getSessionUser } from '$lib/server/auth/session';
 import { authenticateToken } from '$lib/server/auth/token';
 import { getAllowedCorsOrigin, parseAllowedOrigins } from '$lib/server/cors';
+import { isAllowedFormOrigin, requiresFormOriginCheck } from '$lib/server/form-origin';
 import { RateLimiter } from '$lib/server/rate-limit';
 
 const authLimiter = new RateLimiter(10, 60 * 1000); // 10 requests/min per IP
@@ -27,13 +28,23 @@ function applyCorsHeaders(headers: Headers, origin: string) {
 	headers.set('Vary', 'Origin');
 }
 
+function createForbiddenFormOriginResponse(request: Request): Response {
+	const message = `Cross-site ${request.method} form submissions are forbidden`;
+	const status = 403;
+
+	if (request.headers.get('accept') === 'application/json') {
+		return Response.json({ message }, { status });
+	}
+
+	return new Response(message, { status });
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const ip = event.getClientAddress();
 	const path = event.url.pathname;
 	const isApiRoute = path.startsWith('/api/');
-	const corsOrigin = isApiRoute
-		? getAllowedCorsOrigin(event.request.headers.get('origin'), API_ALLOWED_ORIGINS)
-		: null;
+	const requestOrigin = event.request.headers.get('origin');
+	const corsOrigin = isApiRoute ? getAllowedCorsOrigin(requestOrigin, API_ALLOWED_ORIGINS) : null;
 
 	if (isApiRoute && event.request.method === 'OPTIONS') {
 		if (!corsOrigin) {
@@ -43,6 +54,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const response = new Response(null, { status: 204 });
 		applyCorsHeaders(response.headers, corsOrigin);
 		return response;
+	}
+
+	if (
+		requiresFormOriginCheck(event.request.method, event.request.headers.get('content-type')) &&
+		!isAllowedFormOrigin(requestOrigin, event.url, isApiRoute, API_ALLOWED_ORIGINS)
+	) {
+		return createForbiddenFormOriginResponse(event.request);
 	}
 
 	// Rate limiting

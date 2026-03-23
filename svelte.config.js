@@ -1,13 +1,13 @@
 import adapter from '@sveltejs/adapter-node';
 
-const trustedOrigins = ['http://localhost:4200', 'https://potber.de', 'https://test.potber.de'];
-
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
 		adapter: adapter(),
 		csrf: {
-			trustedOrigins
+			// We enforce our own origin policy in hooks so `/api/*` can allow
+			// wildcard preview origins while non-API form submissions stay same-origin.
+			trustedOrigins: ['*']
 		},
 		csp: {
 			mode: 'nonce',
