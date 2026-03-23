@@ -1,5 +1,7 @@
-const POTBER_AUTH_BASE = 'https://auth.potber.de';
-const POTBER_API_BASE = 'https://api.potber.de';
+import { getEnv } from '../env';
+
+const POTBER_AUTH_BASE = getEnv('POTBER_AUTH_BASE');
+const POTBER_API_BASE = getEnv('POTBER_API_BASE');
 const CLIENT_ID = '1b59979e-e95f-4402-85e6-7c0ac509f1c7';
 
 interface PotberSession {
