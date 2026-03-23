@@ -1,9 +1,14 @@
 import adapter from '@sveltejs/adapter-node';
 
+const trustedOrigins = ['http://localhost:4200', 'https://potber.de', 'https://test.potber.de'];
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
 		adapter: adapter(),
+		csrf: {
+			trustedOrigins
+		},
 		csp: {
 			mode: 'nonce',
 			directives: {
