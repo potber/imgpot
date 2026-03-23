@@ -1,11 +1,11 @@
-import { pgTable, serial, text, integer, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { users } from './users';
 import { folders } from './folders';
 
-export const images = pgTable(
+export const images = sqliteTable(
 	'images',
 	{
-		id: serial('id').primaryKey(),
+		id: integer('id').primaryKey({ autoIncrement: true }),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => users.id),
@@ -17,7 +17,9 @@ export const images = pgTable(
 		originalSizeBytes: integer('original_size_bytes').notNull(),
 		storageToken: text('storage_token').notNull(),
 		storagePath: text('storage_path').notNull(),
-		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
 	},
 	(table) => [uniqueIndex('images_storage_token_idx').on(table.storageToken)]
 );

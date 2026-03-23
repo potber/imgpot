@@ -75,7 +75,8 @@ npm run dev       # start dev server on port 3000
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `BUNNY_DATABASE_URL` | Bunny Database libSQL connection URL |
+| `BUNNY_DATABASE_AUTH_TOKEN` | Bunny Database auth token |
 | `BUNNY_STORAGE_ZONE` | bunny.net Storage Zone name |
 | `BUNNY_STORAGE_API_KEY` | bunny.net Storage API key |
 | `BUNNY_STORAGE_REGION` | bunny.net region endpoint |

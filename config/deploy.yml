@@ -24,8 +24,11 @@ env:
   clear:
     BODY_SIZE_LIMIT: "25M"
     CORS_ALLOWED_ORIGINS: "http://localhost:4200,https://potber.de,https://test.potber.de,https://*.preview.potber.de"
+    POTBER_AUTH_BASE: "https://auth.potber.de"
+    POTBER_API_BASE: "https://api.potber.de"
   secret:
-    - DATABASE_URL
+    - BUNNY_DATABASE_URL
+    - BUNNY_DATABASE_AUTH_TOKEN
     - BUNNY_STORAGE_ZONE
     - BUNNY_STORAGE_API_KEY
     - BUNNY_STORAGE_REGION
@@ -39,16 +42,3 @@ builder:
 ssh:
   user: imgpot
   port: 2222
-
-accessories:
-  db:
-    image: postgres:17-alpine
-    host: 91.99.74.154
-    port: "127.0.0.1:5432:5432"
-    env:
-      secret:
-        - POSTGRES_USER
-        - POSTGRES_PASSWORD
-        - POSTGRES_DB
-    directories:
-      - data:/var/lib/postgresql/data

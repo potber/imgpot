@@ -1,11 +1,14 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
+import { migrate } from 'drizzle-orm/libsql/migrator';
 
-const client = postgres(process.env.DATABASE_URL, { max: 1 });
+const client = createClient({
+	url: process.env.BUNNY_DATABASE_URL,
+	authToken: process.env.BUNNY_DATABASE_AUTH_TOKEN
+});
 const db = drizzle(client);
 
 await migrate(db, { migrationsFolder: './drizzle' });
-await client.end();
+client.close();
 
 console.log('Migrations complete');

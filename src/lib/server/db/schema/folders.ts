@@ -1,17 +1,21 @@
-import { pgTable, serial, text, integer, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { users } from './users';
 
-export const folders = pgTable(
+export const folders = sqliteTable(
 	'folders',
 	{
-		id: serial('id').primaryKey(),
+		id: integer('id').primaryKey({ autoIncrement: true }),
 		userId: integer('user_id')
 			.notNull()
 			.references(() => users.id),
 		name: text('name').notNull(),
 		slug: text('slug').notNull(),
-		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+		createdAt: integer('created_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
 	},
 	(table) => [uniqueIndex('folders_user_id_name_idx').on(table.userId, table.name)]
 );

@@ -9,7 +9,7 @@
 
 	const preview = $derived(
 		data.variations.find((v) => v.variationType === 'large') ||
-			data.variations.find((v) => v.variationType === 'original') ||
+			data.variations.find((v) => v.variationType === 'medium') ||
 			data.variations[0]
 	);
 

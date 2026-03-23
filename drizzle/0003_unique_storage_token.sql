@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX IF NOT EXISTS "images_storage_token_idx" ON "images" USING btree ("storage_token");

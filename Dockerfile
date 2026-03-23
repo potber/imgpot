@@ -6,12 +6,15 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN DATABASE_URL=postgresql://build:build@localhost:5432/build \
+RUN BUNNY_DATABASE_URL=file:build.db \
+    BUNNY_DATABASE_AUTH_TOKEN=build \
     BUNNY_STORAGE_ZONE=build \
     BUNNY_STORAGE_API_KEY=build \
     BUNNY_STORAGE_REGION=build \
     BUNNY_CDN_HOSTNAME=build \
     SESSION_SECRET=build \
+    POTBER_AUTH_BASE=https://auth.potber.de \
+    POTBER_API_BASE=https://api.potber.de \
     npm run build
 RUN npm prune --production
 

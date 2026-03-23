@@ -7,24 +7,32 @@ services:
       - ..:/workspace:cached
     command: sleep infinity
     depends_on:
-      postgres:
-        condition: service_healthy
+    - potber-api
+    - potber-auth
+    ports:
+    - "3000:3000"
+  
+  potber-api:
+    image: ghcr.io/potber/potber-api
+    restart: unless-stopped
+    ports:
+    - "3010:3010"
     environment:
-      DATABASE_URL: postgresql://imgpot:imgpot@postgres:5432/imgpot
+      - APP_PORT=3010
+      - APP_CLIENT_URL=http://localhost:3000
+      - APP_API_URL=http://localhost:3010
+      - SWAGGER_TEST_THREAD_ID=219289
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000
+      - AUTH_JWT_SECRET=imnotarealsecret
 
-  postgres:
-    image: postgres:17-alpine
+  potber-auth:
+    image: ghcr.io/potber/potber-auth
+    restart: unless-stopped
+    ports:
+    - "5173:5173"
     environment:
-      POSTGRES_DB: imgpot
-      POSTGRES_USER: imgpot
-      POSTGRES_PASSWORD: imgpot
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U imgpot"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-volumes:
-  pgdata:
+      - PORT=5173
+      - ORIGIN=http://localhost:5173
+      - VITE_API_URL=http://potber-api:3010
+      - VITE_API_LOGIN_ENDPOINT=/auth/login
+      - VITE_API_SESSION_ENDPOINT=/auth/session

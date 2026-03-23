@@ -1,33 +1,12 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1770904336008,
-      "tag": "0000_steep_trauma",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770909264576,
-      "tag": "0001_lethal_grim_reaper",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770909927394,
-      "tag": "0002_pale_stepford_cuckoos",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771017600000,
-      "tag": "0003_unique_storage_token",
+      "version": "6",
+      "when": 1774301761799,
+      "tag": "0000_messy_unicorn",
       "breakpoints": true
     }
   ]

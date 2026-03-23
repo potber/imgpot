@@ -1,9 +1,12 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import * as schema from './schema/index';
-import { getEnv } from '../env';
+import { getEnv, getOptionalEnv } from '../env';
 
-const client = postgres(getEnv('DATABASE_URL'));
+const client = createClient({
+	url: getEnv('BUNNY_DATABASE_URL'),
+	authToken: getOptionalEnv('BUNNY_DATABASE_AUTH_TOKEN')
+});
 
 export const db = drizzle(client, { schema });
 export type Database = typeof db;

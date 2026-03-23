@@ -64,6 +64,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
+	const user = locals.user;
 
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
@@ -88,7 +89,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const folderResult = await db
 			.select()
 			.from(folders)
-			.where(and(eq(folders.id, parsedFolderId), eq(folders.userId, locals.user.id)))
+			.where(and(eq(folders.id, parsedFolderId), eq(folders.userId, user.id)))
 			.limit(1);
 
 		if (folderResult.length === 0) error(400, 'Folder not found');
@@ -159,7 +160,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const [imageRecord] = await tx
 			.insert(images)
 			.values({
-				userId: locals.user.id,
+				userId: user.id,
 				folderId,
 				originalFilename: sanitizedFilename,
 				mimeType: `image/${metadata.format}`,
