@@ -1,16 +1,49 @@
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import { getSessionUser } from '$lib/server/auth/session';
 import { authenticateToken } from '$lib/server/auth/token';
+import { getAllowedCorsOrigin, parseAllowedOrigins } from '$lib/server/cors';
 import { RateLimiter } from '$lib/server/rate-limit';
 
 const authLimiter = new RateLimiter(10, 60 * 1000); // 10 requests/min per IP
 const uploadLimiter = new RateLimiter(30, 60 * 1000); // 30 uploads/min per IP
 const apiLimiter = new RateLimiter(120, 60 * 1000); // 120 requests/min per IP
+const DEFAULT_ALLOWED_ORIGINS = [
+	'http://localhost:4200',
+	'https://potber.de',
+	'https://test.potber.de',
+	'https://*.potber.kristofdreier.de',
+	'https://*.preview.potber.de'
+];
+const API_ALLOWED_ORIGINS = parseAllowedOrigins(
+	env.CORS_ALLOWED_ORIGINS ?? DEFAULT_ALLOWED_ORIGINS.join(',')
+);
+
+function applyCorsHeaders(headers: Headers, origin: string) {
+	headers.set('Access-Control-Allow-Origin', origin);
+	headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+	headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+	headers.set('Vary', 'Origin');
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const ip = event.getClientAddress();
 	const path = event.url.pathname;
+	const isApiRoute = path.startsWith('/api/');
+	const corsOrigin = isApiRoute
+		? getAllowedCorsOrigin(event.request.headers.get('origin'), API_ALLOWED_ORIGINS)
+		: null;
+
+	if (isApiRoute && event.request.method === 'OPTIONS') {
+		if (!corsOrigin) {
+			return new Response('Forbidden', { status: 403 });
+		}
+
+		const response = new Response(null, { status: 204 });
+		applyCorsHeaders(response.headers, corsOrigin);
+		return response;
+	}
 
 	// Rate limiting
 	if (path.startsWith('/auth/')) {
@@ -43,6 +76,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.sessionId = user ? `${user.id}` : null;
 
 	const response = await resolve(event);
+
+	if (corsOrigin) {
+		applyCorsHeaders(response.headers, corsOrigin);
+	}
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'DENY');

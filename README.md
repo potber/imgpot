@@ -81,6 +81,7 @@ npm run dev       # start dev server on port 3000
 | `BUNNY_STORAGE_REGION` | bunny.net region endpoint |
 | `BUNNY_CDN_HOSTNAME` | bunny.net Pull Zone hostname |
 | `SESSION_SECRET` | Secret for session cookies |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated list of frontend origins allowed to call `/api/*` with Bearer auth |
 
 ## Scripts
 
