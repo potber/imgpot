@@ -46,7 +46,7 @@ export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 		}
 	}
 
-	destroySession(cookies);
+	await destroySession(cookies);
 
 	audit(userId, 'account.delete', { imageCount: userImages.length, cdnFiles: cdnFilenames.length });
 

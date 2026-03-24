@@ -1,12 +1,18 @@
 import { relations } from 'drizzle-orm';
 import { users } from './users';
+import { sessions } from './sessions';
 import { folders } from './folders';
 import { images } from './images';
 import { imageVariations } from './image-variations';
 
 export const usersRelations = relations(users, ({ many }) => ({
+	sessions: many(sessions),
 	folders: many(folders),
 	images: many(images)
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+	user: one(users, { fields: [sessions.userId], references: [users.id] })
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({

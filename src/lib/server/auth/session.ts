@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import { dev } from '$app/environment';
 import { db } from '../db/index';
-import { users } from '../db/schema/index';
-import { eq } from 'drizzle-orm';
+import { sessions, users } from '../db/schema/index';
+import { and, eq, gt } from 'drizzle-orm';
 import { getEnv } from '../env';
 import type { Cookies } from '@sveltejs/kit';
 
@@ -24,23 +24,12 @@ function getSecret(): string {
 	return secret;
 }
 
-function sign(value: string): string {
-	const sig = crypto.createHmac('sha256', getSecret()).update(value).digest('base64url');
-	return `${value}.${sig}`;
+function hashToken(token: string): string {
+	return crypto.createHmac('sha256', getSecret()).update(token).digest('base64url');
 }
 
-function verify(signed: string): string | null {
-	const idx = signed.lastIndexOf('.');
-	if (idx === -1) return null;
-
-	const value = signed.slice(0, idx);
-	const sig = signed.slice(idx + 1);
-	if (!value || !sig) return null;
-
-	const expected = crypto.createHmac('sha256', getSecret()).update(value).digest('base64url');
-	if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-
-	return value;
+function generateSessionToken(): string {
+	return crypto.randomBytes(32).toString('base64url');
 }
 
 export async function upsertUser(potberUser: {
@@ -93,8 +82,19 @@ export async function createSession(
 	potberUser: { userId: string; username: string; avatarUrl: string | null }
 ): Promise<SessionUser> {
 	const user = await upsertUser(potberUser);
+	const token = generateSessionToken();
+	const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
 
-	cookies.set(SESSION_COOKIE, sign(`${user.id}`), {
+	await db.transaction(async (tx) => {
+		await tx.delete(sessions).where(eq(sessions.userId, user.id));
+		await tx.insert(sessions).values({
+			userId: user.id,
+			tokenHash: hashToken(token),
+			expiresAt
+		});
+	});
+
+	cookies.set(SESSION_COOKIE, token, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
@@ -109,15 +109,27 @@ export async function getSessionUser(cookies: Cookies): Promise<SessionUser | nu
 	const raw = cookies.get(SESSION_COOKIE);
 	if (!raw) return null;
 
-	const sessionId = verify(raw);
-	if (!sessionId) return null;
+	const result = await db
+		.select({
+			id: users.id,
+			potberUserId: users.potberUserId,
+			username: users.username,
+			avatarUrl: users.avatarUrl
+		})
+		.from(sessions)
+		.innerJoin(users, eq(sessions.userId, users.id))
+		.where(
+			and(
+				eq(sessions.tokenHash, hashToken(raw)),
+				gt(sessions.expiresAt, new Date())
+			)
+		)
+		.limit(1);
 
-	const userId = parseInt(sessionId, 10);
-	if (isNaN(userId)) return null;
-
-	const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-
-	if (result.length === 0) return null;
+	if (result.length === 0) {
+		await destroySession(cookies);
+		return null;
+	}
 
 	const user = result[0];
 	return {
@@ -128,6 +140,12 @@ export async function getSessionUser(cookies: Cookies): Promise<SessionUser | nu
 	};
 }
 
-export function destroySession(cookies: Cookies): void {
+export async function destroySession(cookies: Cookies): Promise<void> {
+	const raw = cookies.get(SESSION_COOKIE);
+
+	if (raw) {
+		await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(raw)));
+	}
+
 	cookies.delete(SESSION_COOKIE, { path: '/' });
 }
