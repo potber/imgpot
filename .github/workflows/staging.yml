@@ -1,0 +1,18 @@
+name: staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release_image:
+    permissions:
+      contents: read
+      packages: write
+    uses: potber/.github/.github/workflows/release_image.yml@v2
