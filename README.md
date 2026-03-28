@@ -1,6 +1,14 @@
-# imgpot
+<p align="center">
+<img src="https://github.com/potber/potber-auth/raw/main/static/logo/440x196_round.png" alt="potber logo" height="200" />
+</p>
+<p align="center">
+An Image hoster for the German forum <a href="https://forum.mods.de" target="_blank">forum.mods.de</a> built with <a href="https://github.com/sveltejs">Svelte</a>. If you're looking for potber-client, you can find it <a href="https://github.com/potber/potber-client" target="_blank">here</a>.
+</p>
 
-Image hosting for [potber](https://potber.de). Users log in via potber-auth OAuth, upload images, and get optimized variations with ready-to-use BBCode for forum posts.
+![Production Builds](https://github.com/potber/imgpot/actions/workflows/production.yml/badge.svg)
+![Staging Builds](https://github.com/potber/imgpot/actions/workflows/staging.yml/badge.svg)
+![Latest Release](https://img.shields.io/github/v/release/potber/imgpot)
+![License](https://img.shields.io/github/license/potber/imgpot)
 
 ## Features
 
