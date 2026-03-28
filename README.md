@@ -112,10 +112,6 @@ Every uploaded image is converted to WebP. Variations that would require upscali
 
 CDN URLs are flat and unguessable: `https://imgpot.de/aB3xK9mR2ql.webp` (10-char base62 token + variation suffix).
 
-## Deployment
-
-The app deploys to a Hetzner VPS via [Kamal v2](https://kamal-deploy.org/).
-
 ### Setup
 
 1. Copy the secrets template and fill in your values:
