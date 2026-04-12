@@ -20,6 +20,13 @@ export function requiresFormOriginCheck(method: string, contentType: string | nu
 	return FORM_METHODS.has(method.toUpperCase()) && isFormContentType(contentType);
 }
 
+export function skipsFormOriginCheckForApiBearerAuth(
+	isApiRoute: boolean,
+	authorizationHeader: string | null
+): boolean {
+	return isApiRoute && authorizationHeader?.startsWith('Bearer ') === true;
+}
+
 export function isAllowedFormOrigin(
 	requestOrigin: string | null,
 	requestUrl: URL,

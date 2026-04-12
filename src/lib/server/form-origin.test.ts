@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	isAllowedFormOrigin,
 	isFormContentType,
-	requiresFormOriginCheck
+	requiresFormOriginCheck,
+	skipsFormOriginCheckForApiBearerAuth
 } from './form-origin';
 
 describe('form-origin', () => {
@@ -18,6 +19,12 @@ describe('form-origin', () => {
 		expect(requiresFormOriginCheck('PUT', 'text/plain')).toBe(true);
 		expect(requiresFormOriginCheck('GET', 'multipart/form-data')).toBe(false);
 		expect(requiresFormOriginCheck('POST', 'application/json')).toBe(false);
+	});
+
+	it('skips form-origin checks for bearer-authenticated api requests only', () => {
+		expect(skipsFormOriginCheckForApiBearerAuth(true, 'Bearer abc123')).toBe(true);
+		expect(skipsFormOriginCheckForApiBearerAuth(true, null)).toBe(false);
+		expect(skipsFormOriginCheckForApiBearerAuth(false, 'Bearer abc123')).toBe(false);
 	});
 
 	it('allows same-origin form submissions', () => {
