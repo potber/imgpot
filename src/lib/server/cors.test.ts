@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getAllowedCorsOrigin, matchesAllowedOrigin, parseAllowedOrigins } from './cors';
+import {
+	allowsApiPreflight,
+	getAllowedCorsOrigin,
+	matchesAllowedOrigin,
+	parseAllowedOrigins
+} from './cors';
 
 describe('matchesAllowedOrigin', () => {
 	it('matches an exact origin', () => {
@@ -43,5 +48,19 @@ describe('getAllowedCorsOrigin', () => {
 
 	it('returns null when it is not allowed', () => {
 		expect(getAllowedCorsOrigin('https://evil.example', ['https://potber.de'])).toBe(null);
+	});
+});
+
+describe('allowsApiPreflight', () => {
+	it('allows preflight without an origin', () => {
+		expect(allowsApiPreflight(null, ['https://potber.de'])).toBe(true);
+	});
+
+	it('allows preflight from an allowed origin', () => {
+		expect(allowsApiPreflight('https://potber.de', ['https://potber.de'])).toBe(true);
+	});
+
+	it('rejects preflight from a disallowed origin', () => {
+		expect(allowsApiPreflight('https://evil.example', ['https://potber.de'])).toBe(false);
 	});
 });

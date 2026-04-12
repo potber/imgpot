@@ -3,16 +3,23 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getSessionUser } from '$lib/server/auth/session';
 import { authenticateToken } from '$lib/server/auth/token';
-import { getAllowedCorsOrigin, parseAllowedOrigins } from '$lib/server/cors';
-import { isAllowedFormOrigin, requiresFormOriginCheck } from '$lib/server/form-origin';
+import { allowsApiPreflight, getAllowedCorsOrigin, parseAllowedOrigins } from '$lib/server/cors';
+import {
+	isAllowedFormOrigin,
+	requiresFormOriginCheck,
+	skipsFormOriginCheckForApiBearerAuth
+} from '$lib/server/form-origin';
 import { RateLimiter } from '$lib/server/rate-limit';
 
 const authLimiter = new RateLimiter(10, 60 * 1000); // 10 requests/min per IP
 const uploadLimiter = new RateLimiter(30, 60 * 1000); // 30 uploads/min per IP
 const apiLimiter = new RateLimiter(120, 60 * 1000); // 120 requests/min per IP
 const DEFAULT_ALLOWED_ORIGINS = [
+	'https://imgpot.de',
+	'https://www.imgpot.de',
 	'http://localhost:4200',
 	'https://potber.de',
+	'https://www.potber.de',
 	'https://test.potber.de',
 	'https://*.potber.kristofdreier.de',
 	'https://*.preview.potber.de'
@@ -44,20 +51,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 	const isApiRoute = path.startsWith('/api/');
 	const requestOrigin = event.request.headers.get('origin');
+	const authorizationHeader = event.request.headers.get('Authorization');
 	const corsOrigin = isApiRoute ? getAllowedCorsOrigin(requestOrigin, API_ALLOWED_ORIGINS) : null;
 
 	if (isApiRoute && event.request.method === 'OPTIONS') {
-		if (!corsOrigin) {
+		if (!allowsApiPreflight(requestOrigin, API_ALLOWED_ORIGINS)) {
 			return new Response('Forbidden', { status: 403 });
 		}
 
 		const response = new Response(null, { status: 204 });
-		applyCorsHeaders(response.headers, corsOrigin);
+		if (corsOrigin) {
+			applyCorsHeaders(response.headers, corsOrigin);
+		}
 		return response;
 	}
 
 	if (
 		requiresFormOriginCheck(event.request.method, event.request.headers.get('content-type')) &&
+		!skipsFormOriginCheckForApiBearerAuth(isApiRoute, authorizationHeader) &&
 		!isAllowedFormOrigin(requestOrigin, event.url, isApiRoute, API_ALLOWED_ORIGINS)
 	) {
 		return createForbiddenFormOriginResponse(event.request);
@@ -79,9 +90,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	let user = await getSessionUser(event.cookies);
 
 	if (!user) {
-		const auth = event.request.headers.get('Authorization');
-		if (auth?.startsWith('Bearer ')) {
-			const token = auth.slice(7);
+		if (authorizationHeader?.startsWith('Bearer ')) {
+			const token = authorizationHeader.slice(7);
 			try {
 				user = await authenticateToken(token);
 			} catch {

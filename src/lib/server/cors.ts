@@ -76,3 +76,7 @@ export function getAllowedCorsOrigin(origin: string | null, allowedOrigins: stri
 		? origin
 		: null;
 }
+
+export function allowsApiPreflight(origin: string | null, allowedOrigins: string[]): boolean {
+	return origin === null || getAllowedCorsOrigin(origin, allowedOrigins) !== null;
+}
