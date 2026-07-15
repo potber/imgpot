@@ -25,7 +25,7 @@
 
 			if (!response.ok) {
 				const data = await response.json();
-				status = data.error || 'Authentication failed.';
+				status = data.message || data.error || 'Authentication failed.';
 				return;
 			}
 
