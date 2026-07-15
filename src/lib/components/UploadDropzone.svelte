@@ -47,6 +47,26 @@
 		if (input.files) uploadFiles(Array.from(input.files));
 	}
 
+	function handlePaste(e: ClipboardEvent) {
+		const clipboardData = e.clipboardData;
+		if (!clipboardData) return;
+
+		const files: File[] = [];
+		for (const item of clipboardData.items) {
+			if (item.kind !== 'file') continue;
+
+			const file = item.getAsFile();
+			if (file) files.push(file);
+		}
+
+		// Some browsers expose clipboard files through `files` but not `items`.
+		if (files.length === 0) files.push(...Array.from(clipboardData.files));
+		if (files.length === 0) return;
+
+		e.preventDefault();
+		uploadFiles(files);
+	}
+
 	async function uploadFiles(files: File[]) {
 		const imageFiles = files.filter((f) => isValidImageType(f.type));
 		if (imageFiles.length === 0) {
@@ -92,6 +112,8 @@
 	}
 </script>
 
+<svelte:window onpaste={handlePaste} />
+
 <div class="space-y-4">
 	<div class="flex items-center gap-4">
 		<label class="text-sm text-gray-400">
@@ -119,7 +141,7 @@
 		{#if uploading}
 			<p class="text-gray-300">{progress}</p>
 		{:else}
-			<p class="mb-2 text-gray-400">Drag & drop images here</p>
+			<p class="mb-2 text-gray-400">Drag & drop or paste images here</p>
 			<p class="mb-4 text-sm text-gray-500">JPEG, PNG, GIF, or WebP (max 20MB)</p>
 			<span
 				class="rounded-lg bg-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-600"

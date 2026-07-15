@@ -5,11 +5,12 @@ import { getSessionUser } from '$lib/server/auth/session';
 import { authenticateToken } from '$lib/server/auth/token';
 import { getAllowedCorsOrigin, parseAllowedOrigins } from '$lib/server/cors';
 import { isAllowedFormOrigin, requiresFormOriginCheck } from '$lib/server/form-origin';
-import { RateLimiter } from '$lib/server/rate-limit';
+import { getRateLimitScope, RateLimiter } from '$lib/server/rate-limit';
 
 const authLimiter = new RateLimiter(10, 60 * 1000); // 10 requests/min per IP
 const uploadLimiter = new RateLimiter(30, 60 * 1000); // 30 uploads/min per IP
 const apiLimiter = new RateLimiter(120, 60 * 1000); // 120 requests/min per IP
+const rateLimiters = { auth: authLimiter, upload: uploadLimiter, api: apiLimiter };
 const DEFAULT_ALLOWED_ORIGINS = [
 	'http://localhost:4200',
 	'https://potber.de',
@@ -64,15 +65,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Rate limiting
-	if (path.startsWith('/auth/')) {
-		if (!authLimiter.check(ip)) {
-			return new Response('Too many requests', { status: 429 });
-		}
-	} else if (path.startsWith('/api/')) {
-		const isUpload = path === '/api/images' && event.request.method === 'POST';
-		const limiter = isUpload ? uploadLimiter : apiLimiter;
+	const rateLimitScope = getRateLimitScope(path, event.request.method);
+	if (rateLimitScope) {
+		const limiter = rateLimiters[rateLimitScope];
+
 		if (!limiter.check(ip)) {
-			return new Response('Too many requests', { status: 429 });
+			return new Response('Too many requests', {
+				status: 429,
+				headers: { 'Retry-After': String(limiter.retryAfterSeconds(ip)) }
+			});
 		}
 	}
 

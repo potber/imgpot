@@ -13,6 +13,17 @@ interface PotberSession {
 	exp: number;
 }
 
+export class TokenValidationError extends Error {
+	constructor(
+		message: string,
+		readonly upstreamStatus: number | null,
+		options?: ErrorOptions
+	) {
+		super(message, options);
+		this.name = 'TokenValidationError';
+	}
+}
+
 export function buildAuthorizationUrl(redirectUri: string, state: string): string {
 	const params = new URLSearchParams({
 		client_id: CLIENT_ID,
@@ -24,14 +35,22 @@ export function buildAuthorizationUrl(redirectUri: string, state: string): strin
 }
 
 export async function validateToken(accessToken: string): Promise<PotberSession> {
-	const response = await fetch(`${POTBER_API_BASE}/auth/session`, {
-		headers: {
-			Authorization: `Bearer ${accessToken}`
-		}
-	});
+	let response: Response;
+	try {
+		response = await fetch(`${POTBER_API_BASE}/auth/session`, {
+			headers: {
+				Authorization: `Bearer ${accessToken}`
+			}
+		});
+	} catch (cause) {
+		throw new TokenValidationError('Token validation request failed', null, { cause });
+	}
 
 	if (!response.ok) {
-		throw new Error('Token validation failed');
+		throw new TokenValidationError(
+			`Token validation failed with status ${response.status}`,
+			response.status
+		);
 	}
 
 	const data: PotberSession = await response.json();

@@ -3,6 +3,15 @@ interface RateLimitEntry {
 	resetAt: number;
 }
 
+export type RateLimitScope = 'auth' | 'upload' | 'api';
+
+export function getRateLimitScope(path: string, method: string): RateLimitScope | null {
+	if (path === '/auth/exchange' && method === 'POST') return 'auth';
+	if (!path.startsWith('/api/')) return null;
+	if (path === '/api/images' && method === 'POST') return 'upload';
+	return 'api';
+}
+
 export class RateLimiter {
 	private store = new Map<string, RateLimitEntry>();
 	private maxEntries: number;
@@ -27,6 +36,13 @@ export class RateLimiter {
 
 		entry.count++;
 		return entry.count <= this.limit;
+	}
+
+	retryAfterSeconds(key: string): number {
+		const entry = this.store.get(key);
+		if (!entry) return 0;
+
+		return Math.max(0, Math.ceil((entry.resetAt - Date.now()) / 1000));
 	}
 
 	private evictIfNeeded(): void {
