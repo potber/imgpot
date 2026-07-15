@@ -41,7 +41,6 @@ function createForbiddenFormOriginResponse(request: Request): Response {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const ip = event.getClientAddress();
 	const path = event.url.pathname;
 	const isApiRoute = path.startsWith('/api/');
 	const requestOrigin = event.request.headers.get('origin');
@@ -67,6 +66,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Rate limiting
 	const rateLimitScope = getRateLimitScope(path, event.request.method);
 	if (rateLimitScope) {
+		const ip = event.getClientAddress();
 		const limiter = rateLimiters[rateLimitScope];
 
 		if (!limiter.check(ip)) {
