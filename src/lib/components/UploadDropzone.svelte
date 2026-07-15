@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { isValidImageType, formatFileSize } from '$lib/utils/file';
+	import { tick } from 'svelte';
+	import {
+		formatFileSize,
+		getClipboardImageFiles,
+		isValidImageType
+	} from '$lib/utils/file';
 
 	interface Folder {
 		id: number;
@@ -25,6 +30,8 @@
 	let selectedFolderId = $state(initialFolderId);
 	let results = $state<UploadResult[]>([]);
 	let errorMessage = $state('');
+	let manualPasteMode = $state(false);
+	let manualPasteTarget = $state<HTMLTextAreaElement>();
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
@@ -47,10 +54,7 @@
 		if (input.files) uploadFiles(Array.from(input.files));
 	}
 
-	function handlePaste(e: ClipboardEvent) {
-		const clipboardData = e.clipboardData;
-		if (!clipboardData) return;
-
+	function getClipboardEventFiles(clipboardData: DataTransfer): File[] {
 		const files: File[] = [];
 		for (const item of clipboardData.items) {
 			if (item.kind !== 'file') continue;
@@ -61,10 +65,59 @@
 
 		// Some browsers expose clipboard files through `files` but not `items`.
 		if (files.length === 0) files.push(...Array.from(clipboardData.files));
+		return files;
+	}
+
+	function handlePaste(e: ClipboardEvent) {
+		if (!e.clipboardData) return;
+
+		const files = getClipboardEventFiles(e.clipboardData);
 		if (files.length === 0) return;
 
 		e.preventDefault();
 		uploadFiles(files);
+	}
+
+	async function showManualPasteTarget() {
+		manualPasteMode = true;
+		errorMessage = '';
+		await tick();
+		manualPasteTarget?.focus();
+	}
+
+	function handleManualPaste(e: ClipboardEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		manualPasteMode = false;
+
+		const files = e.clipboardData ? getClipboardEventFiles(e.clipboardData) : [];
+		if (files.length === 0) {
+			errorMessage = 'No supported image found in the clipboard.';
+			return;
+		}
+
+		uploadFiles(files);
+	}
+
+	async function handleClipboardRead() {
+		if (!navigator.clipboard?.read) {
+			await showManualPasteTarget();
+			return;
+		}
+
+		try {
+			const items = await navigator.clipboard.read();
+			const files = await getClipboardImageFiles(items);
+
+			if (files.length === 0) {
+				errorMessage = 'No supported image found in the clipboard.';
+				return;
+			}
+
+			await uploadFiles(files);
+		} catch {
+			await showManualPasteTarget();
+		}
 	}
 
 	async function uploadFiles(files: File[]) {
@@ -157,6 +210,33 @@
 			/>
 		{/if}
 	</label>
+
+	<div class="flex justify-center">
+		<button
+			type="button"
+			disabled={uploading}
+			onclick={handleClipboardRead}
+			class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			Paste from clipboard
+		</button>
+	</div>
+
+	{#if manualPasteMode}
+		<div class="rounded-lg border border-blue-500/50 bg-blue-500/10 p-3">
+			<label for="manual-paste-target" class="mb-2 block text-sm text-blue-200">
+				Long-press below and choose Paste, or press Ctrl/⌘+V.
+			</label>
+			<textarea
+				id="manual-paste-target"
+				bind:this={manualPasteTarget}
+				onpaste={handleManualPaste}
+				rows="2"
+				class="w-full resize-none rounded bg-gray-900 px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+				placeholder="Paste an image here"
+			></textarea>
+		</div>
+	{/if}
 
 	{#if errorMessage}
 		<p class="text-sm text-red-400">{errorMessage}</p>
